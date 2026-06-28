@@ -1,0 +1,108 @@
+{
+  "name": "ptykit",
+  "version": "0.0.1",
+  "description": "PTY sessions over WebSocket for Node & Bun — collaborative rooms, serialized-scrollback reattach, and a resilient browser client with one typed API.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./dist/client/index.d.ts",
+      "import": "./dist/client/index.js"
+    },
+    "./svelte": {
+      "types": "./src/client/svelte/index.d.ts",
+      "svelte": "./src/client/svelte/index.js",
+      "default": "./src/client/svelte/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "src/client/svelte",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "bun test",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "bun run clean && bun run build"
+  },
+  "keywords": [
+    "pty",
+    "pseudoterminal",
+    "terminal",
+    "websocket",
+    "xterm",
+    "bun-pty",
+    "node-pty",
+    "scrollback",
+    "reattach",
+    "shell",
+    "collaborative",
+    "browser-terminal",
+    "svelte",
+    "bun",
+    "node",
+    "typescript"
+  ],
+  "author": "Myria Labs",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/myrialabs/ptykit.git"
+  },
+  "homepage": "https://github.com/myrialabs/ptykit#readme",
+  "bugs": {
+    "url": "https://github.com/myrialabs/ptykit/issues"
+  },
+  "dependencies": {
+    "@xterm/headless": "^6.0.0",
+    "@xterm/addon-serialize": "^0.14.0"
+  },
+  "optionalDependencies": {
+    "bun-pty": "^0.4.10",
+    "node-pty": "^1.1.0",
+    "ws": "^8.21.0"
+  },
+  "peerDependencies": {
+    "@xterm/xterm": "^6.0.0",
+    "@xterm/addon-fit": "^0.11.0",
+    "svelte": "^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@xterm/xterm": {
+      "optional": true
+    },
+    "@xterm/addon-fit": {
+      "optional": true
+    },
+    "svelte": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.31.0",
+    "@types/bun": "latest",
+    "@types/node": "^22.10.0",
+    "@types/ws": "^8.18.1",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
+    "eslint": "^9.31.0",
+    "globals": "^16.3.0",
+    "svelte": "^5.0.0",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.37.0"
+  }
+}

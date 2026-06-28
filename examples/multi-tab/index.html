@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>ptykit · multi-tab</title>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@6.0.0/css/xterm.min.css" />
+		<style>
+			html, body { margin: 0; height: 100%; background: #0f172a; color: #e2e8f0; font-family: ui-monospace, monospace; }
+			#bar { display: flex; align-items: center; gap: 10px; padding: 6px 10px; font-size: 12px; border-bottom: 1px solid #1e293b; }
+			#status { margin-left: auto; text-transform: uppercase; opacity: 0.8; }
+			#status[data-status='connected'] { color: #4ade80; }
+			#status[data-status='reconnecting'] { color: #fde047; }
+			#status[data-status='disconnected'] { color: #f87171; }
+			#tabs { display: flex; gap: 4px; padding: 6px 8px; border-bottom: 1px solid #1e293b; overflow-x: auto; }
+			.tab { display: inline-flex; align-items: center; gap: 8px; background: #1c1c2e; color: #b0aed0; border: 1px solid #252540; border-radius: 7px 7px 0 0; padding: 5px 10px; font: 12px ui-monospace, monospace; cursor: pointer; }
+			.tab.active { background: #0f172a; color: #4ade80; border-bottom-color: #0f172a; }
+			.tab .close { opacity: 0.5; }
+			.tab .close:hover { opacity: 1; color: #f87171; }
+			.tab.add { color: #4ade80; font-weight: 700; }
+			#screens { position: absolute; top: 76px; left: 0; right: 0; bottom: 0; }
+			.screen { position: absolute; inset: 0; padding: 6px; }
+		</style>
+	</head>
+	<body>
+		<div id="bar"><strong>ptykit</strong> · multi-tab — many sessions, one socket <span id="status">connecting</span></div>
+		<div id="tabs"></div>
+		<div id="screens"></div>
+		<script type="module" src="/app.js"></script>
+	</body>
+</html>

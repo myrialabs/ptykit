@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>ptykit · basic</title>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@6.0.0/css/xterm.min.css" />
+		<style>
+			html, body { margin: 0; height: 100%; background: #0f172a; color: #e2e8f0; font-family: ui-monospace, monospace; }
+			#bar { display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 12px; border-bottom: 1px solid #1e293b; }
+			#status { text-transform: uppercase; opacity: 0.8; }
+			#status[data-status='connected'] { color: #4ade80; }
+			#status[data-status='reconnecting'] { color: #fde047; }
+			#status[data-status='disconnected'] { color: #f87171; }
+			#screen { position: absolute; top: 33px; left: 0; right: 0; bottom: 0; padding: 6px; }
+		</style>
+	</head>
+	<body>
+		<div id="bar"><strong>ptykit</strong> · basic · <span id="status">connecting</span></div>
+		<div id="screen"></div>
+		<script type="module" src="/app.js"></script>
+	</body>
+</html>

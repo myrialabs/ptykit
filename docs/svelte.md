@@ -1,0 +1,77 @@
+# Svelte adapter
+
+`ptykit/svelte` wraps `ptykit/client` + xterm.js + FitAddon into one configurable,
+SSR-safe component.
+
+```svelte
+<script>
+  import { PtyTerminal } from 'ptykit/svelte';
+</script>
+
+<PtyTerminal sessionId="project-42-terminal-1" url="/pty" namespace="project-42" />
+```
+
+A richer example:
+
+```svelte
+<script>
+  import { PtyTerminal } from 'ptykit/svelte';
+  let client;
+</script>
+
+<PtyTerminal
+  sessionId="project-42-terminal-1"
+  url="/pty"
+  namespace="project-42"
+  create
+  fontSize={14}
+  cursorStyle="bar"
+  theme={{ background: '#0f172a', foreground: '#e2e8f0', cursor: '#22c55e' }}
+  reconnect={{ maxAttempts: 0 }}
+  onready={({ client: c }) => (client = c)}
+  onexit={(code) => console.log('shell exited', code)}
+  onstatus={(s) => console.log('status', s)}
+/>
+```
+
+## Props
+
+| Prop | Type | Default | Notes |
+|---|---|---|---|
+| `sessionId` | `string` | — | Session to attach to / create. |
+| `url` | `string` | — | WebSocket endpoint. |
+| `namespace` | `string?` | — | Room/namespace; required with `create`. |
+| `create` | `boolean` | `false` | Create instead of attach. |
+| `client` | `PtyKitClient?` | — | Reuse an existing client instead of creating one. |
+| `reconnect` | `ReconnectOptions?` | — | Reconnect tuning for the internal client. |
+| `persistence` | `SessionPersistence?` | — | sessionId persistence override. |
+| `requestTimeoutMs` | `number?` | — | RPC timeout. |
+| `cols` / `rows` / `cwd` / `shell` | — | — | Session params used when creating. |
+| `scrollback` | `number` | `5000` | Terminal scrollback lines. |
+| `fontSize` / `fontFamily` / `lineHeight` | — | — | Terminal typography. |
+| `cursorBlink` | `boolean` | `true` | |
+| `cursorStyle` | `'block' \| 'underline' \| 'bar'` | `'block'` | |
+| `theme` | `ITheme?` | — | xterm theme object. |
+| `terminalOptions` | `object?` | `{}` | Extra/override xterm options. |
+| `fit` | `boolean` | `true` | Attach FitAddon + ResizeObserver. |
+| `fitDebounceMs` | `number` | `100` | |
+| `showStatus` | `boolean` | `true` | Built-in status chip. |
+| `class` | `string?` | — | Extra class on the root element. |
+
+## Events (callback props)
+
+| Prop | Fires with |
+|---|---|
+| `onready` | `{ client, session, terminal }` once attached. |
+| `ondata` | each output chunk written to the terminal. |
+| `onexit` | the exit code when the shell exits. |
+| `onstatus` | `'connected' \| 'reconnecting' \| 'disconnected'`. |
+| `onerror` | a connection or server error. |
+| `ondirectory` | the new working directory. |
+
+## Peer dependencies
+
+Requires `svelte`, `@xterm/xterm`, and `@xterm/addon-fit` in the consuming app
+(declared as optional peer dependencies of `ptykit`). React/Vue adapters are
+community extension points; the contract is the same `ptykit/client` surface in
+[client.md](./client.md).
