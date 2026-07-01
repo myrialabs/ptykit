@@ -4,13 +4,13 @@
  *   bun examples/basic/server.ts
  *   # open http://localhost:8781
  *
- * Serves a single page that mounts a terminal with `ptykit/client`'s
+ * Serves a single page that mounts a terminal with `@myrialabs/ptykit/client`'s
  * `mountTerminal`, and mounts the PtyKit WebSocket server at /pty. The browser
  * bundle is built on the fly with `Bun.build` so the example needs no separate
  * build step.
  *
  * NOTE: this in-repo example imports from `../../src/...`. A published app would
- * import from `ptykit` and `ptykit/client`.
+ * import from `@myrialabs/ptykit` and `@myrialabs/ptykit/client`.
  */
 
 import { join } from 'node:path';

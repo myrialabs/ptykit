@@ -1,11 +1,11 @@
 # Svelte adapter
 
-`ptykit/svelte` wraps `ptykit/client` + xterm.js + FitAddon into one configurable,
+`@myrialabs/ptykit/svelte` wraps `@myrialabs/ptykit/client` + xterm.js + FitAddon into one configurable,
 SSR-safe component.
 
 ```svelte
 <script>
-  import { PtyTerminal } from 'ptykit/svelte';
+  import { PtyTerminal } from '@myrialabs/ptykit/svelte';
 </script>
 
 <PtyTerminal sessionId="project-42-terminal-1" url="/pty" namespace="project-42" />
@@ -15,7 +15,7 @@ A richer example:
 
 ```svelte
 <script>
-  import { PtyTerminal } from 'ptykit/svelte';
+  import { PtyTerminal } from '@myrialabs/ptykit/svelte';
   let client;
 </script>
 
@@ -72,6 +72,6 @@ A richer example:
 ## Peer dependencies
 
 Requires `svelte`, `@xterm/xterm`, and `@xterm/addon-fit` in the consuming app
-(declared as optional peer dependencies of `ptykit`). React/Vue adapters are
-community extension points; the contract is the same `ptykit/client` surface in
+(declared as optional peer dependencies of `@myrialabs/ptykit`). React/Vue adapters are
+community extension points; the contract is the same `@myrialabs/ptykit/client` surface in
 [client.md](./client.md).

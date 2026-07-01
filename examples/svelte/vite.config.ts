@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
-import { PtyKit, createPtyKitServer } from 'ptykit';
+import { PtyKit, createPtyKitServer } from '@myrialabs/ptykit';
 
 /**
  * Mount the PtyKit WebSocket server directly onto Vite's dev HTTP server, so a
@@ -21,6 +21,6 @@ function ptykitServer() {
 export default defineConfig({
 	plugins: [svelte(), ptykitServer()],
 	// ptykit/svelte ships raw .svelte source; let the svelte plugin compile it.
-	optimizeDeps: { exclude: ['ptykit'] },
+	optimizeDeps: { exclude: ['@myrialabs/ptykit'] },
 	server: { port: 8785 },
 });

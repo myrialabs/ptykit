@@ -1,12 +1,12 @@
 /**
  * Browser side of the basic example.
  *
- * `mountTerminal` is the ready-to-use helper from `ptykit/client`: hand it a
+ * `mountTerminal` is the ready-to-use helper from `@myrialabs/ptykit/client`: hand it a
  * container and a url and it creates the xterm terminal, attaches the FitAddon,
  * opens the session, and wires output⇄input for you — no manual xterm plumbing.
  *
  * In-repo it imports from `../../src/client/...`; a published app would import
- * from `ptykit/client`.
+ * from `@myrialabs/ptykit/client`.
  */
 
 import { mountTerminal } from '../../src/client/index.js';

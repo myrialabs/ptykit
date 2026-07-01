@@ -3,8 +3,8 @@
  *
  *   bun run examples/quick-start.ts
  *
- * In-repo this imports from `../src`; in your app import from `ptykit` and
- * `ptykit/client`.
+ * In-repo this imports from `../src`; in your app import from `@myrialabs/ptykit` and
+ * `@myrialabs/ptykit/client`.
  */
 
 import { PtyKit, createPtyKitServer } from '../src/index.js';

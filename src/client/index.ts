@@ -1,5 +1,5 @@
 /**
- * `ptykit/client` — framework-agnostic browser client.
+ * `@myrialabs/ptykit/client` — framework-agnostic browser client.
  */
 
 export {

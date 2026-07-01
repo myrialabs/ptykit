@@ -1,5 +1,5 @@
 <script>
-	import { PtyTerminal } from 'ptykit/svelte';
+	import { PtyTerminal } from '@myrialabs/ptykit/svelte';
 
 	let status = $state('connecting');
 	const wsUrl = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/pty`;

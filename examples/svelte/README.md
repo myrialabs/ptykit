@@ -27,7 +27,7 @@ bun run dev              # run under Bun so the bun-pty backend is used
 
 ## Notes
 
-- `ptykit/svelte` ships the component as raw `.svelte` source (resolved via the
+- `@myrialabs/ptykit/svelte` ships the component as raw `.svelte` source (resolved via the
   `svelte` export condition), which `@sveltejs/vite-plugin-svelte` compiles in
   your app — no prebuilt component to fight with.
 - The `dev`/`preview` scripts run Vite as `bun --bun vite`. This matters: a plain

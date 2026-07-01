@@ -1,14 +1,14 @@
 <!--
-  PtyTerminal — official Svelte component for `ptykit/svelte`.
+  PtyTerminal — official Svelte component for `@myrialabs/ptykit/svelte`.
 
-  A thin reactive shell over `mountTerminal` from `ptykit/client`, which owns all
+  A thin reactive shell over `mountTerminal` from `@myrialabs/ptykit/client`, which owns all
   the xterm.js + FitAddon + session wiring. xterm is imported dynamically there,
   so the component is SSR-safe (it only touches the DOM in the browser).
 
   Peer deps (provided by the consuming app): svelte, @xterm/xterm, @xterm/addon-fit.
 -->
 <script>
-	import { mountTerminal } from 'ptykit/client';
+	import { mountTerminal } from '@myrialabs/ptykit/client';
 
 	let {
 		// --- connection ---
@@ -62,7 +62,7 @@
 	$effect(() => {
 		if (!container) return;
 		let cancelled = false;
-		/** @type {import('ptykit/client').TerminalHandle | undefined} */
+		/** @type {import('@myrialabs/ptykit/client').TerminalHandle | undefined} */
 		let handle;
 
 		mountTerminal(container, {

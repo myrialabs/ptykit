@@ -1,5 +1,5 @@
 /**
- * Type declarations for `ptykit/svelte`.
+ * Type declarations for `@myrialabs/ptykit/svelte`.
  *
  * The component ships as raw `.svelte` source (resolved via the `svelte` export
  * condition by Svelte-aware bundlers). These hand-written types describe its

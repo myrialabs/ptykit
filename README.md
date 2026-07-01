@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://ptykit.myrialabs.dev">Website</a> ·
-  <a href="https://www.npmjs.com/package/ptykit">npm</a> ·
+  <a href="https://www.npmjs.com/package/@myrialabs/ptykit">npm</a> ·
   <a href="./docs/api.md">API reference</a> ·
   <a href="./docs/server.md">Server</a> ·
   <a href="./docs/client.md">Client</a> ·
@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/ptykit"><img src="https://img.shields.io/npm/v/ptykit" alt="npm version" /></a>
+  <a href="https://www.npmjs.com/package/@myrialabs/ptykit"><img src="https://img.shields.io/npm/v/@myrialabs%2Fptykit" alt="npm version" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT" /></a>
   <img src="https://img.shields.io/badge/runtime-Node%2018%2B%20%7C%20Bun-black" alt="Node 18+ and Bun" />
 </p>
@@ -36,7 +36,7 @@ Node); you bring the auth.
 
 ```ts
 // Server
-import { PtyKit, createPtyKitServer } from 'ptykit';
+import { PtyKit, createPtyKitServer } from '@myrialabs/ptykit';
 
 const manager = new PtyKit();
 const server = createPtyKitServer(manager, {
@@ -49,7 +49,7 @@ Bun.serve({ port: 3000, fetch: server.fetch, websocket: server.websocket });
 
 ```ts
 // Browser
-import { PtyKitClient } from 'ptykit/client';
+import { PtyKitClient } from '@myrialabs/ptykit/client';
 
 const client = new PtyKitClient({ url: '/pty', namespace: 'project-42' });
 const session = await client.attach('project-42-terminal-1');
@@ -79,7 +79,7 @@ term.onData((data) => session.write(data));
 ## Install
 
 ```sh
-bun add ptykit          # or: npm i ptykit / pnpm add ptykit
+bun add @myrialabs/ptykit          # or: npm i @myrialabs/ptykit / pnpm add @myrialabs/ptykit
 ```
 
 The PTY backend is an **optional** dependency resolved at runtime: `bun-pty` on
@@ -91,9 +91,9 @@ optional peer dependencies you already have in a frontend.
 
 | Import | What |
 | --- | --- |
-| `ptykit` | Core session engine (`PtyKit`) + WebSocket server (`createPtyKitServer`). |
-| `ptykit/client` | Framework-agnostic browser client (`mountTerminal`, `PtyKitClient`, `attachFit`). |
-| `ptykit/svelte` | Official Svelte component (`<PtyTerminal/>`). |
+| `@myrialabs/ptykit` | Core session engine (`PtyKit`) + WebSocket server (`createPtyKitServer`). |
+| `@myrialabs/ptykit/client` | Framework-agnostic browser client (`mountTerminal`, `PtyKitClient`, `attachFit`). |
+| `@myrialabs/ptykit/svelte` | Official Svelte component (`<PtyTerminal/>`). |
 
 ## Quick start
 
@@ -163,7 +163,7 @@ terminal, fits it, opens the session, and wires output⇄input, while staying fu
 configurable.
 
 ```ts
-import { mountTerminal } from 'ptykit/client';
+import { mountTerminal } from '@myrialabs/ptykit/client';
 
 const { session, terminal, dispose } = await mountTerminal(el, {
   url: '/pty',
@@ -197,7 +197,7 @@ persistence, and the session API.
 
 ```svelte
 <script>
-  import { PtyTerminal } from 'ptykit/svelte';
+  import { PtyTerminal } from '@myrialabs/ptykit/svelte';
 </script>
 
 <PtyTerminal sessionId="project-42-terminal-1" url="/pty" namespace="project-42" />

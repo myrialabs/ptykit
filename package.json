@@ -1,8 +1,11 @@
 {
-  "name": "ptykit",
+  "name": "@myrialabs/ptykit",
   "version": "0.0.1",
   "description": "PTY sessions over WebSocket for Node & Bun — collaborative rooms, serialized-scrollback reattach, and a resilient browser client with one typed API.",
   "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

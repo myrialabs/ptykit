@@ -8,7 +8,7 @@
  * handle with the underlying `terminal`/`fitAddon`/`session` for advanced use.
  *
  * xterm and the FitAddon are imported dynamically (they are optional peer deps),
- * so non-browser/headless consumers of `ptykit/client` never pull them in, and
+ * so non-browser/headless consumers of `@myrialabs/ptykit/client` never pull them in, and
  * the call is SSR-safe — it only touches the DOM when actually invoked.
  */
 

@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "ptykit",
+      "name": "@myrialabs/ptykit",
       "dependencies": {
         "@xterm/addon-serialize": "^0.14.0",
         "@xterm/headless": "^6.0.0",

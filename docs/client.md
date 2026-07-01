@@ -1,6 +1,6 @@
 # Client
 
-`ptykit/client` — the framework-agnostic browser client.
+`@myrialabs/ptykit/client` — the framework-agnostic browser client.
 
 ## `mountTerminal` — the ready-to-use path
 
@@ -10,7 +10,7 @@ and it creates the xterm `Terminal`, attaches a `FitAddon`, opens the session,
 and wires output⇄input — while staying fully configurable.
 
 ```ts
-import { mountTerminal } from 'ptykit/client';
+import { mountTerminal } from '@myrialabs/ptykit/client';
 
 const handle = await mountTerminal(document.getElementById('screen')!, {
   url: '/pty',
@@ -41,7 +41,7 @@ handle.dispose();                     // detach, dispose the terminal, disconnec
 - `fit: false` skips the `FitAddon` + `ResizeObserver` (then `handle.fitAddon` is
   `undefined`).
 - xterm and the FitAddon are imported dynamically, so a non-browser/headless
-  consumer of `ptykit/client` never pulls them in, and the call is SSR-safe.
+  consumer of `@myrialabs/ptykit/client` never pulls them in, and the call is SSR-safe.
 - Resolves once the session is open; **rejects** (and calls `onError`) if
   attach/create fails — so a backend/connection failure surfaces rather than
   leaving a blank terminal.
@@ -54,7 +54,7 @@ terminal lifecycle (e.g. custom addons, multiple terminals per session).
 One WebSocket multiplexes every session in a namespace.
 
 ```ts
-import { PtyKitClient } from 'ptykit/client';
+import { PtyKitClient } from '@myrialabs/ptykit/client';
 
 const client = new PtyKitClient({
   url: '/api/pty',
@@ -105,7 +105,7 @@ The reattach replay frame is unicast during `attach()`, before your code calls
 ## `attachFit` (R15)
 
 ```ts
-import { attachFit } from 'ptykit/client';
+import { attachFit } from '@myrialabs/ptykit/client';
 
 const dispose = attachFit(session, term, fitAddon, { debounceMs: 100 });
 ```

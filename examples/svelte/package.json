@@ -8,7 +8,7 @@
     "preview": "bun --bun vite preview"
   },
   "dependencies": {
-    "ptykit": "file:../..",
+    "@myrialabs/ptykit": "file:../..",
     "@xterm/xterm": "^6.0.0",
     "@xterm/addon-fit": "^0.11.0"
   },

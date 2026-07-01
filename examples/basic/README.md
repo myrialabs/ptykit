@@ -1,7 +1,7 @@
 # Example: basic
 
 A single terminal in ~10 lines, using the ready-to-use `mountTerminal` helper
-from `ptykit/client` — no framework, no manual xterm wiring. The quickest way to
+from `@myrialabs/ptykit/client` — no framework, no manual xterm wiring. The quickest way to
 see a real collaborative terminal end-to-end.
 
 ## Run
@@ -25,7 +25,7 @@ status indicator reflects `connected | reconnecting | disconnected`.
 ## Notes
 
 - In-repo, the example imports from `../../src/...`. A published app imports from
-  `ptykit` (server) and `ptykit/client` (browser).
+   `@myrialabs/ptykit` (server) and `@myrialabs/ptykit/client` (browser).
 - `authorize` is left at its allow-all default here — fine for localhost, **never
   for production**. See the security note in the root README.
 - Want to customize the look (theme, font, cursor)? See the

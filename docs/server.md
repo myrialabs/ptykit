@@ -1,7 +1,7 @@
 # Server
 
 The core engine (`PtyKit`) and the WebSocket transport (`createPtyKitServer`),
-both imported from `ptykit`. WebSocket only — no SSE, no transport option.
+both imported from `@myrialabs/ptykit`. WebSocket only — no SSE, no transport option.
 
 ## `PtyKit`
 
@@ -10,7 +10,7 @@ auto-detected backend, runs the output pipeline, and keeps scrollback in a
 headless xterm for serialized reattach.
 
 ```ts
-import { PtyKit } from 'ptykit';
+import { PtyKit } from '@myrialabs/ptykit';
 
 const manager = new PtyKit({
   env: { sanitize: true, inject: { /* extra child env vars */ } }, // R2
@@ -38,7 +38,7 @@ To extend scrollback (e.g. a disk-backed store) implement `BufferStore` and pass
 ## `createPtyKitServer`
 
 ```ts
-import { createPtyKitServer } from 'ptykit';
+import { createPtyKitServer } from '@myrialabs/ptykit';
 
 const server = createPtyKitServer(manager, {
   path: '/api/pty',

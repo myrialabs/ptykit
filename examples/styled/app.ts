@@ -8,7 +8,7 @@
  * scrollback replays and your shell history survives the restyle.
  *
  * In-repo it imports from `../../src/client/...`; a published app would import
- * from `ptykit/client`.
+ * from `@myrialabs/ptykit/client`.
  */
 
 import {

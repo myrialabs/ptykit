@@ -33,4 +33,4 @@ replays — your shell history survives the restyle.
 - Styling options map directly to xterm: `theme` is an xterm `ITheme`,
   `terminalOptions` is spread last so you can override anything.
 - In-repo, the example imports from `../../src/...`. A published app imports from
-  `ptykit` (server) and `ptykit/client` (browser).
+   `@myrialabs/ptykit` (server) and `@myrialabs/ptykit/client` (browser).

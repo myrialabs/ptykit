@@ -38,7 +38,7 @@ Each folder is a small web app. The plain ones bundle on the fly with `Bun.build
 ## Notes
 
 - The examples import from `../src/...`, so they run straight from a clone. In
-  your own project, import from `'ptykit'` and `'ptykit/client'` instead.
+  your own project, import from `'@myrialabs/ptykit'` and `'@myrialabs/ptykit/client'` instead.
 - The `.ts` examples need **Bun** (they use `bun-pty` and `Bun.serve`).
   `node-server.ts` also runs under Node if you have a working `node-pty` build.
 - The `basic/`, `styled/`, `collaborative-web/`, and `multi-tab/` browser examples

@@ -4,12 +4,12 @@
  * any sessions the server already has (via `listSessions`) and reattaches them —
  * so a refresh restores every tab.
  *
- * Each tab is a `mountTerminal` call from `ptykit/client`, all sharing one
+ * Each tab is a `mountTerminal` call from `@myrialabs/ptykit/client`, all sharing one
  * `PtyKitClient` (so a single socket multiplexes every tab). The returned handle
  * exposes the `terminal`/`fitAddon`/`session` we need for focus, fit, and close.
  *
  * In-repo this imports from `../../src/client`; a published app imports from
- * `ptykit/client`.
+ * `@myrialabs/ptykit/client`.
  */
 
 import { PtyKitClient, mountTerminal, type TerminalHandle } from '../../src/client/index.js';
