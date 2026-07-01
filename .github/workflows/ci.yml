@@ -95,7 +95,7 @@ jobs:
           bun install
           bun run build
           npm pack
-          tar -tf ptykit-*.tgz | grep -E 'dist/index.js' || (echo "tarball missing required files" && exit 1)
+          tar -tf myrialabs-ptykit-*.tgz | grep -E 'dist/index.js' || (echo "tarball missing required files" && exit 1)
           echo "Tarball contents verified."
 
   publish:
