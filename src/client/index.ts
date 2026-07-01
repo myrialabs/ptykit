@@ -15,6 +15,7 @@ export {
 	type TerminalHandle,
 } from './terminal.js';
 export { defaultPersistence, type SessionPersistence } from './persistence.js';
+export { hostSocket, type HostSocketHandle } from './host-socket.js';
 export {
 	WsCore,
 	type WsCoreOptions,

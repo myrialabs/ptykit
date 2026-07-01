@@ -1,18 +1,19 @@
 # Server
 
-The core engine (`PtyKit`) and the WebSocket transport (`createPtyKitServer`),
-both imported from `@myrialabs/ptykit`. WebSocket only — no SSE, no transport option.
+The core engine (`PtyKitManager`) and the WebSocket transport (`createPtyKitServer`),
+both imported from `@myrialabs/ptykit` (or the narrower `@myrialabs/ptykit/core`
+and `@myrialabs/ptykit/server`). WebSocket only — no SSE, no transport option.
 
-## `PtyKit`
+## `PtyKitManager`
 
 The session manager. Owns `Map<sessionId, Session>`, spawns PTYs through the
 auto-detected backend, runs the output pipeline, and keeps scrollback in a
 headless xterm for serialized reattach.
 
 ```ts
-import { PtyKit } from '@myrialabs/ptykit';
+import { PtyKitManager } from '@myrialabs/ptykit';
 
-const manager = new PtyKit({
+const manager = new PtyKitManager({
   env: { sanitize: true, inject: { /* extra child env vars */ } }, // R2
   scrollback: 5000,                 // headless xterm lines (R6)
   idleTtl: null,                    // sessions live until killed (R4); a number opts into idle reaping
@@ -64,6 +65,38 @@ const httpServer = http.createServer(app);
 await server.attach(httpServer);
 httpServer.listen(3000);
 ```
+
+### Embedded transport (bring-your-own-socket)
+
+If you already run an app-wide WebSocket (a multiplexed control/data socket that
+also carries other features), you don't need a second PtyKit socket. Skip the
+Bun/Node mounting above and drive the server from your own socket instead — the
+wire protocol is unchanged (still WebSocket, still `{ action, payload }` frames);
+only socket ownership moves to the host.
+
+```ts
+const server = createPtyKitServer(manager, {
+  authorize: (ctx) => canAccess(ctx.conn.data.user, ctx.namespace),
+  room: (ctx) => ctx.namespace,
+});
+
+// For each host connection, mint a PtyKit connection whose `send` tunnels a
+// frame over your socket, and carry your identity on `data`.
+const conn = server.createConnection({
+  data: { user },                        // what `authorize` inspects
+  send: (frame) => host.send(id, frame), // deliver a frame to this client
+  close: () => host.close(id),
+});
+server.handleOpen(conn);
+
+// Feed inbound frames. Use `handleFrame` when you already have a parsed object
+// (no redundant JSON round-trip); `handleMessage` accepts a raw string/bytes.
+host.onFrame(id, (frame) => server.handleFrame(conn, frame));
+host.onClose(id, () => server.handleClose(conn));
+```
+
+`onUpgrade`/`resolveUpgrade` are for the HTTP-upgrade path; in embedded mode you
+set identity directly on `createConnection({ data })`.
 
 ### The `authorize` hook
 

@@ -5,10 +5,10 @@
  *   bun run examples/collaborative.ts
  */
 
-import { PtyKit, createPtyKitServer } from '../src/index.js';
+import { PtyKitManager, createPtyKitServer } from '../src/index.js';
 import { PtyKitClient } from '../src/client/index.js';
 
-const manager = new PtyKit();
+const manager = new PtyKitManager();
 const server = createPtyKitServer(manager, { path: '/pty' });
 const bun = Bun.serve({ port: 0, fetch: server.fetch, websocket: server.websocket });
 const url = `ws://localhost:${bun.port}/pty`;

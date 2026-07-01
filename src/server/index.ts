@@ -6,6 +6,7 @@ export {
 	PtyKitServer,
 	createPtyKitServer,
 	type PtyKitServerOptions,
+	type EmbeddedConnectionOptions,
 	type AuthorizeContext,
 	type AuthorizeHook,
 	type AuthorizeOperation,

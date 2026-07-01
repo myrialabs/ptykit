@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
-import { PtyKit, createPtyKitServer } from '@myrialabs/ptykit';
+import { PtyKitManager, createPtyKitServer } from '@myrialabs/ptykit';
 
 /**
  * Mount the PtyKit WebSocket server directly onto Vite's dev HTTP server, so a
@@ -11,7 +11,7 @@ function ptykitServer() {
 	return {
 		name: 'ptykit-server',
 		async configureServer(server: any) {
-			const manager = new PtyKit({ scrollback: 5000 });
+			const manager = new PtyKitManager({ scrollback: 5000 });
 			const pty = createPtyKitServer(manager, { path: '/pty' });
 			if (server.httpServer) await pty.attach(server.httpServer);
 		},

@@ -6,13 +6,15 @@ The public surface of `@myrialabs/ptykit`, split across three entry points.
 
 | Import | Exports |
 |---|---|
-| `@myrialabs/ptykit` | `PtyKit`, `createPtyKitServer`, wire-protocol types, `PTYKIT_VERSION`. |
+| `@myrialabs/ptykit` | Barrel: `PtyKitManager`, `createPtyKitServer`, wire-protocol types, `PTYKIT_VERSION`. |
+| `@myrialabs/ptykit/core` | `PtyKitManager` and the core seams (backend, scrollback, env/shell). |
+| `@myrialabs/ptykit/server` | `PtyKitServer`, `createPtyKitServer`, `RoomRegistry`, transport hook types. |
 | `@myrialabs/ptykit/client` | `mountTerminal`, `PtyKitClient`, `ClientSession`, `attachFit`, `defaultPersistence`, `WsCore`. |
 | `@myrialabs/ptykit/svelte` | `PtyTerminal` (default + named). |
 
 ## `@myrialabs/ptykit` (core + server)
 
-- `PtyKit` — session manager. See [server.md](./server.md#ptykit).
+- `PtyKitManager` — session manager. See [server.md](./server.md#ptykitmanager).
 - `createPtyKitServer(manager, options)` — WebSocket server. See
   [server.md](./server.md#createptykitserver).
 - Backend: `loadBackend`, `detectBackendName`, `PtyBackend`, `PtyProcessHandle`.
@@ -28,6 +30,9 @@ The public surface of `@myrialabs/ptykit`, split across three entry points.
 - `PtyKitClient` / `ClientSession` — see [client.md](./client.md).
 - `attachFit(session, term, fitAddon, { debounceMs })` — see [client.md](./client.md#attachfit).
 - `defaultPersistence()` / `SessionPersistence` — sessionId persistence.
+- `hostSocket(handle)` / `HostSocketHandle` — adapt an app-owned WebSocket into the
+  `WebSocketImpl` seam so the client rides it instead of opening its own. See
+  [client.md](./client.md#embedded-ride-a-socket-you-already-own).
 - `WsCore` — the low-level resilient socket (advanced use).
 
 ## `@myrialabs/ptykit/svelte`

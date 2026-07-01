@@ -14,13 +14,17 @@
 
 import { PtyKitClient, type ClientSession } from './pty-kit-client.js';
 import { attachFit } from './fit.js';
-import type { ReconnectOptions, WSStatus } from './ws-core.js';
+import type { ReconnectOptions, WSStatus, WebSocketFactory } from './ws-core.js';
 import type { SessionPersistence } from './persistence.js';
 
 export interface MountTerminalOptions {
 	// --- connection ---
-	/** WebSocket endpoint, e.g. `/pty` or `wss://host/pty`. */
-	url: string;
+	/**
+	 * WebSocket endpoint, e.g. `/pty` or `wss://host/pty`. Optional (and ignored)
+	 * when `WebSocketImpl` rides a host socket (e.g. `hostSocket(...)`), or when a
+	 * pre-built `client` is supplied.
+	 */
+	url?: string;
 	/** Session to attach to / create. Omit when creating to auto-generate one. */
 	sessionId?: string;
 	/** Room/namespace. Required (here or on a passed-in `client`). */
@@ -35,6 +39,11 @@ export interface MountTerminalOptions {
 	persistence?: SessionPersistence;
 	/** RPC timeout (ms). */
 	requestTimeoutMs?: number;
+	/**
+	 * Injectable WebSocket constructor for the internally-created client. Pass
+	 * `hostSocket(...)` to tunnel over a socket your app already owns.
+	 */
+	WebSocketImpl?: WebSocketFactory;
 
 	// --- session (used when creating) ---
 	cols?: number;
@@ -53,11 +62,23 @@ export interface MountTerminalOptions {
 	theme?: Record<string, unknown>;
 	/** Extra/override xterm `Terminal` options. */
 	terminalOptions?: Record<string, unknown>;
+	/**
+	 * Extra xterm addons (e.g. clipboard, web-links, ligatures, unicode11) loaded
+	 * after the FitAddon. Construct them yourself and pass the instances; use
+	 * `onReady` for any post-load activation (e.g. `terminal.unicode.activeVersion`).
+	 */
+	addons?: unknown[];
 
 	// --- behavior ---
 	/** Attach a FitAddon + ResizeObserver. Default `true`. */
 	fit?: boolean;
 	fitDebounceMs?: number;
+	/**
+	 * Called after the terminal is opened and all addons are loaded, but before the
+	 * session attaches — the place to activate addon features or install custom key
+	 * handlers on the raw `terminal`.
+	 */
+	onReady?: (terminal: any) => void;
 
 	// --- callbacks ---
 	onData?: (chunk: string) => void;
@@ -110,7 +131,9 @@ export async function mountTerminal(
 	});
 	const fitAddon = options.fit === false ? undefined : new FitAddon();
 	if (fitAddon) terminal.loadAddon(fitAddon);
+	for (const addon of options.addons ?? []) terminal.loadAddon(addon);
 	terminal.open(target);
+	options.onReady?.(terminal);
 
 	const ownClient = !options.client;
 	const client =
@@ -121,6 +144,7 @@ export async function mountTerminal(
 			reconnect: options.reconnect,
 			persistence: options.persistence,
 			requestTimeoutMs: options.requestTimeoutMs,
+			WebSocketImpl: options.WebSocketImpl,
 		});
 
 	const unsubs: Array<() => void> = [];

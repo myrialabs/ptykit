@@ -7,7 +7,7 @@
  * hook with anti-hijack ownership checks (R10).
  */
 
-import type { PtyKit } from '../core/pty-kit.js';
+import type { PtyKitManager } from '../core/pty-kit.js';
 import type { Session } from '../core/session.js';
 import { checkShell } from '../core/shell.js';
 import {
@@ -28,8 +28,19 @@ import {
 	type ReconnectRequest,
 } from '../shared/index.js';
 import { RoomRegistry, type PtyKitConnection } from './connection.js';
+import { nextConnectionId } from './ids.js';
 import { BunTransport } from './transport-bun.js';
 import { NodeTransport } from './transport-node.js';
+
+/** Options for {@link PtyKitServer.createConnection} (embedded transports). */
+export interface EmbeddedConnectionOptions {
+	/** Identity/context the `authorize` hook inspects (e.g. `{ user }`). */
+	data?: Record<string, unknown>;
+	/** Deliver one wire frame to this client. */
+	send: (frame: WireFrame) => void;
+	/** Tear down the underlying transport for this client. Optional. */
+	close?: () => void;
+}
 
 /** The operation an `authorize` check guards. */
 export type AuthorizeOperation = 'create' | 'attach' | 'write' | 'resize' | 'kill';
@@ -79,7 +90,7 @@ function iso(): string {
 }
 
 export class PtyKitServer {
-	readonly manager: PtyKit;
+	readonly manager: PtyKitManager;
 	readonly path: string;
 	private readonly rooms = new RoomRegistry();
 	private readonly options: PtyKitServerOptions;
@@ -89,12 +100,44 @@ export class PtyKitServer {
 	private bunTransport?: BunTransport;
 	private nodeTransport?: NodeTransport;
 
-	constructor(manager: PtyKit, options: PtyKitServerOptions = {}) {
+	constructor(manager: PtyKitManager, options: PtyKitServerOptions = {}) {
 		this.manager = manager;
 		this.options = options;
 		this.logger = options.logger ?? silentLogger;
 		this.path = options.path ?? '/';
 		this.resolveRoom = options.room ?? ((ctx) => ctx.namespace);
+	}
+
+	// ---- Embedded transport (bring-your-own-socket) ------------------------
+
+	/**
+	 * Mint a transport-agnostic {@link PtyKitConnection} for embedding PtyKit on a
+	 * socket you already own (e.g. an app-wide multiplexed WebSocket) instead of
+	 * letting the Bun/Node transports own it. PtyKit assigns a stable id; you
+	 * supply how to `send` a frame (and optionally `close`). Drive the connection
+	 * with {@link handleOpen}, {@link handleFrame} / {@link handleMessage}, and
+	 * {@link handleClose}.
+	 *
+	 * The wire protocol is unchanged — still WebSocket, still `{ action, payload }`
+	 * frames — only socket ownership moves to the host.
+	 */
+	createConnection(opts: EmbeddedConnectionOptions): PtyKitConnection {
+		return {
+			id: nextConnectionId(),
+			data: opts.data ?? {},
+			send: opts.send,
+			close: opts.close ?? (() => {}),
+		};
+	}
+
+	/**
+	 * Process one already-parsed wire frame from a connection. Prefer this over
+	 * {@link handleMessage} in embedded transports that carry structured frames
+	 * (avoids a redundant JSON stringify/parse round-trip).
+	 */
+	async handleFrame(conn: PtyKitConnection, frame: WireFrame): Promise<void> {
+		if (!frame || typeof frame.action !== 'string') return;
+		await this.dispatch(conn, frame.action, frame.payload);
 	}
 
 	// ---- Identity / lifecycle ----------------------------------------------
@@ -131,8 +174,7 @@ export class PtyKitServer {
 			this.logger.warn('server', 'dropping unparseable frame');
 			return;
 		}
-		if (!frame || typeof frame.action !== 'string') return;
-		await this.dispatch(conn, frame.action, frame.payload);
+		await this.handleFrame(conn, frame);
 	}
 
 	// ---- Dispatch -----------------------------------------------------------
@@ -454,7 +496,7 @@ export class PtyKitServer {
 	}
 }
 
-/** Create a WebSocket server over a `PtyKit` manager. */
-export function createPtyKitServer(manager: PtyKit, options: PtyKitServerOptions = {}): PtyKitServer {
+/** Create a WebSocket server over a `PtyKitManager`. */
+export function createPtyKitServer(manager: PtyKitManager, options: PtyKitServerOptions = {}): PtyKitServer {
 	return new PtyKitServer(manager, options);
 }

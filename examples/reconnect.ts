@@ -5,15 +5,15 @@
  *   bun run examples/reconnect.ts
  */
 
-import { PtyKit, createPtyKitServer } from '../src/index.js';
+import { PtyKitManager, createPtyKitServer } from '../src/index.js';
 import { PtyKitClient } from '../src/client/index.js';
 
-function startServer(manager: PtyKit, port: number) {
+function startServer(manager: PtyKitManager, port: number) {
 	const server = createPtyKitServer(manager, { path: '/pty' });
 	return Bun.serve({ port, fetch: server.fetch, websocket: server.websocket });
 }
 
-const manager = new PtyKit();
+const manager = new PtyKitManager();
 let bun = startServer(manager, 0);
 const port = bun.port;
 const url = `ws://localhost:${port}/pty`;

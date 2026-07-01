@@ -6,9 +6,9 @@
  *   bun run examples/headless-capture.ts
  */
 
-import { PtyKit } from '../src/index.js';
+import { PtyKitManager } from '../src/index.js';
 
-const manager = new PtyKit({ scrollback: 5000 });
+const manager = new PtyKitManager({ scrollback: 5000 });
 const session = await manager.createSession({ sessionId: 'cap-1', namespace: 'local', cols: 80, rows: 24 });
 
 // Listen to live output (batched, with a monotonic seq for dedup).

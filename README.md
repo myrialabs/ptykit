@@ -36,9 +36,9 @@ Node); you bring the auth.
 
 ```ts
 // Server
-import { PtyKit, createPtyKitServer } from '@myrialabs/ptykit';
+import { PtyKitManager, createPtyKitServer } from '@myrialabs/ptykit';
 
-const manager = new PtyKit();
+const manager = new PtyKitManager();
 const server = createPtyKitServer(manager, {
   path: '/pty',
   authorize: (ctx) => ctx.conn.data.user?.canAccess(ctx.namespace) ?? false,
@@ -91,7 +91,9 @@ optional peer dependencies you already have in a frontend.
 
 | Import | What |
 | --- | --- |
-| `@myrialabs/ptykit` | Core session engine (`PtyKit`) + WebSocket server (`createPtyKitServer`). |
+| `@myrialabs/ptykit` | Convenience barrel: core session engine (`PtyKitManager`) + WebSocket server (`createPtyKitServer`). |
+| `@myrialabs/ptykit/core` | Core session engine only (`PtyKitManager`) — transport-agnostic, no server. |
+| `@myrialabs/ptykit/server` | WebSocket transport server only (`PtyKitServer`, `createPtyKitServer`). |
 | `@myrialabs/ptykit/client` | Framework-agnostic browser client (`mountTerminal`, `PtyKitClient`, `attachFit`). |
 | `@myrialabs/ptykit/svelte` | Official Svelte component (`<PtyTerminal/>`). |
 
@@ -99,7 +101,7 @@ optional peer dependencies you already have in a frontend.
 
 | Task | API |
 | --- | --- |
-| Create the manager | `const m = new PtyKit({ scrollback: 5000 })` |
+| Create the manager | `const m = new PtyKitManager({ scrollback: 5000 })` |
 | Mount on Bun | `Bun.serve({ fetch: server.fetch, websocket: server.websocket })` |
 | Mount on Node | `await server.attach(httpServer)` |
 | Terminal (vanilla) | `await mountTerminal(el, { url: '/pty', namespace, sessionId, create: true })` |
@@ -129,10 +131,10 @@ await server.attach(httpServer);
 httpServer.listen(3000);
 ```
 
-The `PtyKit` manager owns the sessions and is transport-agnostic:
+The `PtyKitManager` owns the sessions and is transport-agnostic:
 
 ```ts
-const manager = new PtyKit({
+const manager = new PtyKitManager({
   scrollback: 5000,         // headless xterm lines
   idleTtl: null,            // sessions live until killed; a number opts into idle reaping
   retainExitedMs: 5 * 60_000, // keep exited sessions this long for reconnect replay

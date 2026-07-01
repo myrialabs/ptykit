@@ -12,6 +12,7 @@ import type {
 	PtyKitClient,
 	ReconnectOptions,
 	SessionPersistence,
+	WebSocketFactory,
 } from '../index.js';
 
 export interface PtyTerminalReadyContext {
@@ -25,8 +26,8 @@ export interface PtyTerminalProps {
 	// connection
 	/** Session to attach to / create (created server-side if new). */
 	sessionId: string;
-	/** WebSocket endpoint, e.g. `/pty`. */
-	url: string;
+	/** WebSocket endpoint, e.g. `/pty`. Optional when `WebSocketImpl`/`client` rides a host socket. */
+	url?: string;
 	/** Room/namespace. Required when `create` is true. */
 	namespace?: string;
 	/** Create instead of attach. Default `false`. */
@@ -39,6 +40,8 @@ export interface PtyTerminalProps {
 	persistence?: SessionPersistence;
 	/** RPC timeout (ms). */
 	requestTimeoutMs?: number;
+	/** Injectable WebSocket constructor — pass `hostSocket(...)` to tunnel over an app socket. */
+	WebSocketImpl?: WebSocketFactory;
 
 	// session (used when creating)
 	cols?: number;
@@ -57,11 +60,15 @@ export interface PtyTerminalProps {
 	theme?: Record<string, unknown>;
 	/** Extra/override xterm `Terminal` options. */
 	terminalOptions?: Record<string, unknown>;
+	/** Extra xterm addons (clipboard, web-links, ligatures, unicode11, …) loaded after FitAddon. */
+	addons?: unknown[];
 
 	// behavior
 	/** Attach a FitAddon + ResizeObserver. Default `true`. */
 	fit?: boolean;
 	fitDebounceMs?: number;
+	/** Called with the raw `terminal` after addons load, before attach (activate addons / key handlers). */
+	onTerminalReady?: (terminal: unknown) => void;
 	/** Show the built-in connection-status chip. Default `true`. */
 	showStatus?: boolean;
 

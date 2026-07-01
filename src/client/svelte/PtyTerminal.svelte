@@ -20,6 +20,7 @@
 		reconnect = undefined,
 		persistence = undefined,
 		requestTimeoutMs = undefined,
+		WebSocketImpl = undefined,
 
 		// --- session (used when creating) ---
 		cols = undefined,
@@ -36,10 +37,12 @@
 		cursorStyle = 'block',
 		theme = undefined,
 		terminalOptions = {},
+		addons = undefined,
 
 		// --- behavior ---
 		fit = true,
 		fitDebounceMs = 100,
+		onTerminalReady = undefined,
 		showStatus = true,
 
 		// --- styling ---
@@ -74,6 +77,7 @@
 			reconnect,
 			persistence,
 			requestTimeoutMs,
+			WebSocketImpl,
 			cols,
 			rows,
 			cwd,
@@ -86,8 +90,10 @@
 			cursorStyle,
 			theme,
 			terminalOptions,
+			addons,
 			fit,
 			fitDebounceMs,
+			onReady: onTerminalReady,
 			onData: ondata,
 			onExit: onexit,
 			onError: onerror,

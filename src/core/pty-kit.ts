@@ -1,5 +1,5 @@
 /**
- * `PtyKit` — the session manager.
+ * `PtyKitManager` — the session manager.
  *
  * Owns `Map<sessionId, Session>`, the auto-detected backend, the scrollback
  * store, and session lifecycle: idempotent create (R3), no idle TTL by default
@@ -15,7 +15,7 @@ import { Session } from './session.js';
 import { resolveCwd } from './shell.js';
 import { type Logger, silentLogger } from '../shared/index.js';
 
-export interface PtyKitOptions {
+export interface PtyKitManagerOptions {
 	/** Environment hygiene (R2). */
 	env?: EnvOptions;
 	/** Headless scrollback lines (R6). Default 5000. */
@@ -50,10 +50,10 @@ export interface CreateSessionOptions {
 
 const DEFAULT_RETAIN_EXITED_MS = 5 * 60_000;
 
-export class PtyKit {
+export class PtyKitManager {
 	private readonly sessions = new Map<string, Session>();
 	private readonly buffers: BufferStore;
-	private readonly options: PtyKitOptions;
+	private readonly options: PtyKitManagerOptions;
 	private readonly logger: Logger;
 	private readonly retainExitedMs: number | null;
 	private readonly idleTtl: number | null;
@@ -63,7 +63,7 @@ export class PtyKit {
 	private idleSweeper: ReturnType<typeof setInterval> | null = null;
 	private disposed = false;
 
-	constructor(options: PtyKitOptions = {}) {
+	constructor(options: PtyKitManagerOptions = {}) {
 		this.options = options;
 		this.logger = options.logger ?? silentLogger;
 		this.backend = options.backend ?? null;
@@ -97,7 +97,7 @@ export class PtyKit {
 	 * Throws if the id is held by a different namespace (anti-hijack defense).
 	 */
 	async createSession(opts: CreateSessionOptions): Promise<Session> {
-		if (this.disposed) throw new Error('PtyKit has been disposed');
+		if (this.disposed) throw new Error('PtyKitManager has been disposed');
 
 		const existing = this.sessions.get(opts.sessionId);
 		if (existing) {

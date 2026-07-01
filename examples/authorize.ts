@@ -6,10 +6,10 @@
  *   bun run examples/authorize.ts
  */
 
-import { PtyKit, createPtyKitServer } from '../src/index.js';
+import { PtyKitManager, createPtyKitServer } from '../src/index.js';
 import { PtyKitClient } from '../src/client/index.js';
 
-const manager = new PtyKit();
+const manager = new PtyKitManager();
 
 const server = createPtyKitServer(manager, {
 	path: '/pty',

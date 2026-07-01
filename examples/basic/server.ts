@@ -14,9 +14,9 @@
  */
 
 import { join } from 'node:path';
-import { PtyKit, createPtyKitServer } from '../../src/index.js';
+import { PtyKitManager, createPtyKitServer } from '../../src/index.js';
 
-const manager = new PtyKit({ scrollback: 5000 });
+const manager = new PtyKitManager({ scrollback: 5000 });
 
 // authorize defaults to allow-all here — fine for localhost, NEVER for production.
 const ptyServer = createPtyKitServer(manager, { path: '/pty' });

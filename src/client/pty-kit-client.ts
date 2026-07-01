@@ -21,12 +21,19 @@ import {
 import { defaultPersistence, type SessionPersistence } from './persistence.js';
 
 export interface PtyKitClientOptions {
-	url: string;
+	/**
+	 * WebSocket URL to open. Optional (and ignored) when a `WebSocketImpl` rides an
+	 * existing host connection — e.g. `hostSocket(...)` for embedded transports.
+	 */
+	url?: string;
 	/** Default namespace for `create`/`attach` when not passed explicitly. */
 	namespace?: string;
 	reconnect?: ReconnectOptions;
 	persistence?: SessionPersistence;
-	/** Injectable WebSocket constructor (defaults to global `WebSocket`). */
+	/**
+	 * Injectable WebSocket constructor (defaults to global `WebSocket`). Pass
+	 * `hostSocket(...)` to tunnel over a socket your app already owns.
+	 */
 	WebSocketImpl?: WebSocketFactory;
 	requestTimeoutMs?: number;
 }
@@ -181,7 +188,7 @@ export class PtyKitClient {
 		this.persistence = options.persistence ?? defaultPersistence();
 		this.defaultNamespace = options.namespace;
 		this.core = new WsCore({
-			url: options.url,
+			url: options.url ?? '',
 			reconnect: options.reconnect,
 			WebSocketImpl: options.WebSocketImpl,
 			requestTimeoutMs: options.requestTimeoutMs,

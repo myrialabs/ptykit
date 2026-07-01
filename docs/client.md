@@ -40,6 +40,12 @@ handle.dispose();                     // detach, dispose the terminal, disconnec
   connected; when `mountTerminal` creates its own, `dispose()` disconnects it.
 - `fit: false` skips the `FitAddon` + `ResizeObserver` (then `handle.fitAddon` is
   `undefined`).
+- `addons` — construct extra xterm addons yourself (clipboard, web-links,
+  ligatures, unicode11, …) and pass the instances; they load after the FitAddon.
+  Use `onReady(terminal)` for post-load activation (e.g.
+  `terminal.unicode.activeVersion = '11'`) or to install custom key handlers.
+- `WebSocketImpl` — pass `hostSocket(...)` to run the internal client over a socket
+  your app already owns instead of opening a new one (see [Embedded](#embedded-ride-a-socket-you-already-own)).
 - xterm and the FitAddon are imported dynamically, so a non-browser/headless
   consumer of `@myrialabs/ptykit/client` never pulls them in, and the call is SSR-safe.
 - Resolves once the session is open; **rejects** (and calls `onError`) if
@@ -101,6 +107,33 @@ generates and persists one; `attach()` without one loads the persisted id.
 The reattach replay frame is unicast during `attach()`, before your code calls
 `onData`. The session buffers that output (bounded) and flushes it to the first
 `onData` subscriber, so reattach never drops the replayed screen.
+
+## Embedded: ride a socket you already own
+
+PtyKit is WebSocket-only and normally opens its own socket. If your app already
+runs a single multiplexed WebSocket, adapt it with `hostSocket(...)` and pass it
+as `WebSocketImpl` — PtyKit keeps its reconnect/heal/idempotent-resend while your
+socket stays the only connection. The wire protocol is unchanged; only socket
+ownership moves to the host. Pair this with the server's
+[embedded transport](./server.md#embedded-transport-bring-your-own-socket).
+
+```ts
+import { PtyKitClient, hostSocket } from '@myrialabs/ptykit/client';
+
+const client = new PtyKitClient({
+  namespace: 'project-123',            // `url` is optional / ignored here
+  WebSocketImpl: hostSocket({
+    send: (frame) => appWs.emit('pty:frame', frame),        // one client→server frame
+    subscribe: (onFrame) => appWs.on('pty:frame', onFrame), // server→client frames; returns unsub
+    isOpen: () => appWs.status === 'connected',
+    onStatusChange: (cb) => appWs.onStatus((s) => cb(s === 'connected')),
+  }),
+});
+```
+
+`hostSocket` fires `onclose` only when an established link actually drops; while
+merely waiting for the host to come up it stays pending, so reconnect attempts are
+not burned — PtyKit re-attaches every session the moment the host reconnects.
 
 ## `attachFit` (R15)
 

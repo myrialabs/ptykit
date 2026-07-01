@@ -22,7 +22,7 @@ export {
 	type SessionExitListener,
 } from './session.js';
 export {
-	PtyKit,
-	type PtyKitOptions,
+	PtyKitManager,
+	type PtyKitManagerOptions,
 	type CreateSessionOptions,
 } from './pty-kit.js';

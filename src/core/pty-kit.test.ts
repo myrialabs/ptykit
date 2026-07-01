@@ -1,10 +1,10 @@
 import { expect, test } from 'bun:test';
-import { PtyKit } from './pty-kit.js';
+import { PtyKitManager } from './pty-kit.js';
 import { FakeBackend, flushMicrotasks } from './fake-backend.js';
 
-function makeKit(opts: Partial<ConstructorParameters<typeof PtyKit>[0]> = {}) {
+function makeKit(opts: Partial<ConstructorParameters<typeof PtyKitManager>[0]> = {}) {
 	const backend = new FakeBackend();
-	const kit = new PtyKit({ backend, idleFallbackMs: 1_000_000, killGraceMs: 5, ...opts });
+	const kit = new PtyKitManager({ backend, idleFallbackMs: 1_000_000, killGraceMs: 5, ...opts });
 	return { backend, kit };
 }
 

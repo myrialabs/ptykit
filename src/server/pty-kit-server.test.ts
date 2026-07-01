@@ -1,15 +1,16 @@
 import { afterEach, expect, test } from 'bun:test';
 import http from 'node:http';
-import { PtyKit } from '../core/pty-kit.js';
-import { FakeBackend } from '../core/fake-backend.js';
+import { PtyKitManager } from '../core/pty-kit.js';
+import { FakeBackend, flushMicrotasks } from '../core/fake-backend.js';
 import { createPtyKitServer, type AuthorizeHook } from './pty-kit-server.js';
+import type { WireFrame } from '../shared/index.js';
 
 // ---- Test harness: real Bun WebSocket server + client ----------------------
 
 interface Harness {
 	port: number;
 	backend: FakeBackend;
-	manager: PtyKit;
+	manager: PtyKitManager;
 	stop: () => void;
 }
 
@@ -17,7 +18,7 @@ const harnesses: Harness[] = [];
 
 function startServer(authorize?: AuthorizeHook): Harness {
 	const backend = new FakeBackend();
-	const manager = new PtyKit({ backend, idleFallbackMs: 1_000_000, killGraceMs: 5 });
+	const manager = new PtyKitManager({ backend, idleFallbackMs: 1_000_000, killGraceMs: 5 });
 	const server = createPtyKitServer(manager, {
 		path: '/pty',
 		authorize,
@@ -272,7 +273,7 @@ test('check-shell reports platform shell availability', async () => {
 
 test('Node transport: attach to an http.Server and create a session over ws (R9)', async () => {
 	const backend = new FakeBackend();
-	const manager = new PtyKit({ backend, idleFallbackMs: 1_000_000 });
+	const manager = new PtyKitManager({ backend, idleFallbackMs: 1_000_000 });
 	const server = createPtyKitServer(manager, { path: '/pty', onUpgrade: () => ({ user: 'node' }) });
 	const httpServer = http.createServer((_req, res) => res.end('ok'));
 	await server.attach(httpServer);
@@ -289,4 +290,69 @@ test('Node transport: attach to an http.Server and create a session over ws (R9)
 	c.close();
 	manager.dispose();
 	await new Promise<void>((r) => httpServer.close(() => r()));
+});
+
+// ---- Embedded transport (bring-your-own-socket) ----------------------------
+
+test('embedded transport: createConnection + handleFrame drive RPC create + response', async () => {
+	const backend = new FakeBackend();
+	const manager = new PtyKitManager({ backend, idleFallbackMs: 1_000_000, killGraceMs: 5 });
+	const server = createPtyKitServer(manager); // no HTTP wiring
+
+	const frames: WireFrame[] = [];
+	const conn = server.createConnection({ data: { user: 'a' }, send: (f) => frames.push(f) });
+	server.handleOpen(conn);
+
+	await server.handleFrame(conn, {
+		action: 'create-session',
+		payload: { requestId: 'r1', data: { sessionId: 's1', namespace: 'proj', cols: 80, rows: 24 } },
+	});
+
+	const resp = frames.find((f) => f.action === 'create-session:response');
+	expect(resp).toBeDefined();
+	const payload = resp!.payload as { success: boolean; data: { sessionId: string; pid: number } };
+	expect(payload.success).toBe(true);
+	expect(payload.data.sessionId).toBe('s1');
+	expect(payload.data.pid).toBe(backend.last.pid);
+
+	manager.dispose();
+});
+
+test('embedded transport: session output broadcasts to the room via conn.send', async () => {
+	const backend = new FakeBackend();
+	const manager = new PtyKitManager({ backend, idleFallbackMs: 1_000_000, killGraceMs: 5 });
+	const server = createPtyKitServer(manager, { room: (ctx) => ctx.namespace });
+
+	const framesA: WireFrame[] = [];
+	const framesB: WireFrame[] = [];
+	const connA = server.createConnection({ data: { user: 'a' }, send: (f) => framesA.push(f) });
+	const connB = server.createConnection({ data: { user: 'b' }, send: (f) => framesB.push(f) });
+	server.handleOpen(connA);
+	server.handleOpen(connB);
+
+	// Both connections create/attach the same session → same room (namespace).
+	const create = (requestId: string) =>
+		server.handleFrame(connA, {
+			action: 'create-session',
+			payload: { requestId, data: { sessionId: 's1', namespace: 'proj', cols: 80, rows: 24 } },
+		});
+	await create('r1');
+	await server.handleFrame(connB, {
+		action: 'create-session',
+		payload: { requestId: 'r2', data: { sessionId: 's1', namespace: 'proj', cols: 80, rows: 24 } },
+	});
+
+	// Drive PTY output; it should fan out to every connection in the room.
+	backend.last.emitData('hello');
+	await flushMicrotasks();
+
+	const outA = framesA.find((f) => f.action === 'output');
+	const outB = framesB.find((f) => f.action === 'output');
+	expect(outA).toBeDefined();
+	expect(outB).toBeDefined();
+	expect((outA!.payload as { content: string }).content).toContain('hello');
+
+	// handleClose removes the connection from its rooms (no throw, no further sends).
+	server.handleClose(connB);
+	manager.dispose();
 });

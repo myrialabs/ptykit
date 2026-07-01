@@ -7,19 +7,19 @@
  */
 
 import { afterEach, expect, test } from 'bun:test';
-import { PtyKit } from './core/pty-kit.js';
+import { PtyKitManager } from './core/pty-kit.js';
 import { createPtyKitServer } from './server/pty-kit-server.js';
 import { PtyKitClient } from './client/pty-kit-client.js';
 
 interface Live {
 	port: number;
-	manager: PtyKit;
+	manager: PtyKitManager;
 	stop: () => void;
 }
 const lives: Live[] = [];
 
 function startReal(): Live {
-	const manager = new PtyKit({ retainExitedMs: 60_000 });
+	const manager = new PtyKitManager({ retainExitedMs: 60_000 });
 	const server = createPtyKitServer(manager, { path: '/pty' });
 	const bun = Bun.serve({ port: 0, fetch: server.fetch, websocket: server.websocket });
 	const live: Live = { port: bun.port, manager, stop: () => bun.stop(true) };

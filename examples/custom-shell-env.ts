@@ -4,9 +4,9 @@
  *   bun run examples/custom-shell-env.ts
  */
 
-import { PtyKit } from '../src/index.js';
+import { PtyKitManager } from '../src/index.js';
 
-const manager = new PtyKit({
+const manager = new PtyKitManager({
 	// Strip Bun/npm/Vite pollution from the child env, then inject your own.
 	env: {
 		sanitize: true,
