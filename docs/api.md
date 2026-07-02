@@ -9,7 +9,9 @@ The public surface of `@myrialabs/ptykit`, split across three entry points.
 | `@myrialabs/ptykit` | Barrel: `PtyKitManager`, `createPtyKitServer`, wire-protocol types, `PTYKIT_VERSION`. |
 | `@myrialabs/ptykit/core` | `PtyKitManager` and the core seams (backend, scrollback, env/shell). |
 | `@myrialabs/ptykit/server` | `PtyKitServer`, `createPtyKitServer`, `RoomRegistry`, transport hook types. |
-| `@myrialabs/ptykit/client` | `mountTerminal`, `PtyKitClient`, `ClientSession`, `attachFit`, `defaultPersistence`, `WsCore`. |
+| `@myrialabs/ptykit/client` | `mountTerminal`, `mountViewer`, `PtyKitClient`, `ClientSession`, `attachFit`, `hostSocket`, `defaultPersistence`, `WsCore`. |
+| `@myrialabs/ptykit/xterm` | Re-exported xterm pieces: `Terminal`, `FitAddon`, `ClipboardAddon`, `WebLinksAddon`, `Unicode11Addon`, `LigaturesAddon`. |
+| `@myrialabs/ptykit/xterm.css` | xterm base stylesheet (side-effect import). |
 | `@myrialabs/ptykit/svelte` | `PtyTerminal` (default + named). |
 
 ## `@myrialabs/ptykit` (core + server)
@@ -27,6 +29,9 @@ The public surface of `@myrialabs/ptykit`, split across three entry points.
 - `mountTerminal(target, options)` — ready-to-use xterm terminal wired to a
   session; returns a `{ client, session, terminal, fitAddon, dispose }` handle.
   See [client.md](./client.md#mountterminal--the-ready-to-use-path).
+- `mountViewer(target, options)` — read-only output terminal (no PTY, no input);
+  returns a `{ terminal, fitAddon, write, clear, fit, dispose }` handle for
+  streaming logs/progress. See [client.md](./client.md#mountviewer--read-only-output).
 - `PtyKitClient` / `ClientSession` — see [client.md](./client.md).
 - `attachFit(session, term, fitAddon, { debounceMs })` — see [client.md](./client.md#attachfit).
 - `defaultPersistence()` / `SessionPersistence` — sessionId persistence.

@@ -39,9 +39,16 @@ export function attachFit(
 		if (timer) clearTimeout(timer);
 		timer = setTimeout(() => {
 			try {
+				// Skip while the terminal is hidden / not laid out. A zero-size
+				// container makes `fit()` resize the terminal (and the PTY) toward
+				// zero, which reflows and drops scrollback — and shows up as lost
+				// lines, garbled repaints, and full-screen apps re-initializing when
+				// a tab is toggled with `display:none`. Fit again once it's visible.
+				const el = term.element;
+				if (el && (el.clientWidth === 0 || el.clientHeight === 0)) return;
 				fitAddon.fit();
 				const dims = fitAddon.proposeDimensions();
-				if (!dims) return;
+				if (!dims || !(dims.cols > 0) || !(dims.rows > 0)) return;
 				if (last && last.cols === dims.cols && last.rows === dims.rows) return;
 				last = { cols: dims.cols, rows: dims.rows };
 				void session.resize(dims.cols, dims.rows);

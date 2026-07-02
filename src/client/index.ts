@@ -14,6 +14,11 @@ export {
 	type MountTerminalOptions,
 	type TerminalHandle,
 } from './terminal.js';
+export {
+	mountViewer,
+	type MountViewerOptions,
+	type TerminalViewerHandle,
+} from './viewer.js';
 export { defaultPersistence, type SessionPersistence } from './persistence.js';
 export { hostSocket, type HostSocketHandle } from './host-socket.js';
 export {

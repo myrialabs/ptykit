@@ -9,6 +9,7 @@
 -->
 <script>
 	import { mountTerminal } from '@myrialabs/ptykit/client';
+	import '@xterm/xterm/css/xterm.css';
 
 	let {
 		// --- connection ---
@@ -38,6 +39,10 @@
 		theme = undefined,
 		terminalOptions = {},
 		addons = undefined,
+		clipboard = false,
+		webLinks = false,
+		unicode11 = false,
+		ligatures = false,
 
 		// --- behavior ---
 		fit = true,
@@ -91,6 +96,10 @@
 			theme,
 			terminalOptions,
 			addons,
+			clipboard,
+			webLinks,
+			unicode11,
+			ligatures,
 			fit,
 			fitDebounceMs,
 			onReady: onTerminalReady,

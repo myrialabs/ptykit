@@ -60,8 +60,13 @@ export interface PtyTerminalProps {
 	theme?: Record<string, unknown>;
 	/** Extra/override xterm `Terminal` options. */
 	terminalOptions?: Record<string, unknown>;
-	/** Extra xterm addons (clipboard, web-links, ligatures, unicode11, …) loaded after FitAddon. */
+	/** Extra xterm addons loaded after FitAddon (pass instances). */
 	addons?: unknown[];
+	/** Built-in optional addons, loaded lazily when enabled (optional peer deps). */
+	clipboard?: boolean;
+	webLinks?: boolean;
+	unicode11?: boolean;
+	ligatures?: boolean;
 
 	// behavior
 	/** Attach a FitAddon + ResizeObserver. Default `true`. */

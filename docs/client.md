@@ -55,6 +55,33 @@ handle.dispose();                     // detach, dispose the terminal, disconnec
 Reach for the lower-level `PtyKitClient` below when you need full control over the
 terminal lifecycle (e.g. custom addons, multiple terminals per session).
 
+## `mountViewer` — read-only output
+
+Need a terminal just to *display* streamed text — build logs, install progress,
+debug traces — with no shell, no PTY, and no user input? `mountViewer` is the
+output-only sibling of `mountTerminal`: same appearance/addon options and the
+same lazy, SSR-safe xterm loading, but instead of a session it returns a
+`write`/`clear`/`fit`/`dispose` handle. No `new Terminal()`, `loadAddon`,
+`open`, or `ResizeObserver` to wire yourself.
+
+```ts
+import { mountViewer } from '@myrialabs/ptykit/client';
+
+const view = await mountViewer(document.getElementById('log')!, {
+  fontSize: 12,
+  theme: { background: '#0f172a', foreground: '#e2e8f0' },
+  webLinks: true,          // clipboard / webLinks / unicode11 / ligatures toggles
+  // stdin: false is the default — a viewer ignores keystrokes
+});
+
+socket.onLog((chunk) => view.write(chunk)); // push output
+view.clear();                                // clear + reset
+view.dispose();                              // tear down + stop observing resize
+```
+
+`view.terminal` / `view.fitAddon` are exposed for advanced use (selection,
+`reset()`, etc.).
+
 ## `PtyKitClient`
 
 One WebSocket multiplexes every session in a namespace.

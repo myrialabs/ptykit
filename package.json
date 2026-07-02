@@ -1,6 +1,6 @@
 {
   "name": "@myrialabs/ptykit",
-  "version": "0.0.2",
+  "version": "0.0.4",
   "description": "PTY sessions over WebSocket for Node & Bun — collaborative rooms, serialized-scrollback reattach, and a resilient browser client with one typed API.",
   "type": "module",
   "publishConfig": {
@@ -23,6 +23,11 @@
       "types": "./dist/client/index.d.ts",
       "import": "./dist/client/index.js"
     },
+    "./xterm": {
+      "types": "./dist/client/xterm.d.ts",
+      "import": "./dist/client/xterm.js"
+    },
+    "./xterm.css": "./src/client/xterm.css",
     "./svelte": {
       "types": "./src/client/svelte/index.d.ts",
       "svelte": "./src/client/svelte/index.js",
@@ -34,6 +39,7 @@
   "files": [
     "dist",
     "src/client/svelte",
+    "src/client/xterm.css",
     "README.md",
     "LICENSE"
   ],
@@ -80,7 +86,13 @@
   },
   "dependencies": {
     "@xterm/headless": "^6.0.0",
-    "@xterm/addon-serialize": "^0.14.0"
+    "@xterm/addon-serialize": "^0.14.0",
+    "@xterm/xterm": "^6.0.0",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-clipboard": "^0.2.0",
+    "@xterm/addon-web-links": "^0.12.0",
+    "@xterm/addon-unicode11": "^0.9.0",
+    "@xterm/addon-ligatures": "^0.10.0"
   },
   "optionalDependencies": {
     "bun-pty": "^0.4.10",
@@ -88,17 +100,9 @@
     "ws": "^8.21.0"
   },
   "peerDependencies": {
-    "@xterm/xterm": "^6.0.0",
-    "@xterm/addon-fit": "^0.11.0",
     "svelte": "^5.0.0"
   },
   "peerDependenciesMeta": {
-    "@xterm/xterm": {
-      "optional": true
-    },
-    "@xterm/addon-fit": {
-      "optional": true
-    },
     "svelte": {
       "optional": true
     }
@@ -108,7 +112,11 @@
     "@types/bun": "latest",
     "@types/node": "^22.10.0",
     "@types/ws": "^8.18.1",
+    "@xterm/addon-clipboard": "^0.2.0",
     "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-ligatures": "^0.10.0",
+    "@xterm/addon-unicode11": "^0.9.0",
+    "@xterm/addon-web-links": "^0.12.0",
     "@xterm/xterm": "^6.0.0",
     "eslint": "^9.31.0",
     "globals": "^16.3.0",

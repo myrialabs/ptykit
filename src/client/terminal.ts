@@ -63,11 +63,19 @@ export interface MountTerminalOptions {
 	/** Extra/override xterm `Terminal` options. */
 	terminalOptions?: Record<string, unknown>;
 	/**
-	 * Extra xterm addons (e.g. clipboard, web-links, ligatures, unicode11) loaded
-	 * after the FitAddon. Construct them yourself and pass the instances; use
-	 * `onReady` for any post-load activation (e.g. `terminal.unicode.activeVersion`).
+	 * Extra xterm addons loaded after the FitAddon. Construct them yourself and
+	 * pass the instances; use `onReady` for any post-load activation.
 	 */
 	addons?: unknown[];
+	/**
+	 * Built-in optional addons, loaded lazily when enabled (each is an optional
+	 * peer dep — a missing package is skipped silently). Saves consumers the
+	 * import + `loadAddon` boilerplate.
+	 */
+	clipboard?: boolean;   // `@xterm/addon-clipboard`
+	webLinks?: boolean;    // `@xterm/addon-web-links`
+	unicode11?: boolean;   // `@xterm/addon-unicode11` (also sets activeVersion = '11')
+	ligatures?: boolean;   // `@xterm/addon-ligatures` (loaded after open)
 
 	// --- behavior ---
 	/** Attach a FitAddon + ResizeObserver. Default `true`. */
@@ -131,8 +139,35 @@ export async function mountTerminal(
 	});
 	const fitAddon = options.fit === false ? undefined : new FitAddon();
 	if (fitAddon) terminal.loadAddon(fitAddon);
+
+	// Built-in optional addons — lazy, each an optional peer dep (skip if absent).
+	if (options.clipboard) {
+		try {
+			const { ClipboardAddon } = (await import('@xterm/addon-clipboard')) as any;
+			terminal.loadAddon(new ClipboardAddon());
+		} catch { /* addon not installed */ }
+	}
+	if (options.webLinks) {
+		try {
+			const { WebLinksAddon } = (await import('@xterm/addon-web-links')) as any;
+			terminal.loadAddon(new WebLinksAddon());
+		} catch { /* addon not installed */ }
+	}
+	if (options.unicode11) {
+		try {
+			const { Unicode11Addon } = (await import('@xterm/addon-unicode11')) as any;
+			terminal.loadAddon(new Unicode11Addon());
+			terminal.unicode.activeVersion = '11';
+		} catch { /* addon not installed */ }
+	}
 	for (const addon of options.addons ?? []) terminal.loadAddon(addon);
 	terminal.open(target);
+	if (options.ligatures) {
+		try {
+			const { LigaturesAddon } = (await import('@xterm/addon-ligatures')) as any;
+			terminal.loadAddon(new LigaturesAddon());
+		} catch { /* addon not installed / no ligature font */ }
+	}
 	options.onReady?.(terminal);
 
 	const ownClient = !options.client;
