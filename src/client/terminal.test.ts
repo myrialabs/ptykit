@@ -74,7 +74,7 @@ async function mount(opts: Record<string, unknown> = {}) {
 	const client = makeClient();
 	const socket = MockWebSocket.instances[0]!;
 	socket.accept();
-	const target = {} as unknown as HTMLElement;
+	const target = { style: {} } as unknown as HTMLElement;
 	const p = mountTerminal(target, { url: 'ws://test/pty', client, sessionId: 's1', create: true, ...opts });
 	await tick(0);
 	respondTo(socket, 'create-session', { sessionId: 's1', streamId: 's1-s', pid: 1, currentDirectory: '/tmp', cols: 80, rows: 24 });
@@ -159,7 +159,7 @@ test('rejects and calls onError (and disposes) when create fails', async () => {
 	const socket = MockWebSocket.instances[0]!;
 	socket.accept();
 	let errored: unknown;
-	const p = mountTerminal({} as unknown as HTMLElement, {
+	const p = mountTerminal({ style: {} } as unknown as HTMLElement, {
 		url: 'ws://test/pty',
 		client,
 		sessionId: 's1',
