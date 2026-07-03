@@ -32,7 +32,7 @@ Each folder is a small web app. The plain ones bundle on the fly with `Bun.build
 | [`basic/`](./basic) | `bun examples/basic/server.ts` → :8781 | A single terminal via the ready-to-use `mountTerminal` helper |
 | [`collaborative-web/`](./collaborative-web) | `bun examples/collaborative-web/server.ts` → :8782 | Two `mountTerminal` panes, one session — type in either, both update |
 | [`multi-tab/`](./multi-tab) | `bun examples/multi-tab/server.ts` → :8783 | Tabbed multi-session manager (`mountTerminal` + one shared client) |
-| [`styled/`](./styled) | `bun examples/styled/server.ts` → :8784 | Theming a terminal: live presets (dark + light) via `mountTerminal` |
+| [`styled/`](./styled) | `bun examples/styled/server.ts` → :8784 | Theming: built-in `dark`/`light` presets + custom palettes, switched live via `setTheme` |
 | [`svelte/`](./svelte) | `bun install && bun run dev` → :5180 | The `<PtyTerminal/>` Svelte component in a Vite app |
 
 ## Notes

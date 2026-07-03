@@ -17,6 +17,7 @@ class FakeTerminal {
 		this.options = options;
 		FakeTerminal.instances.push(this);
 	}
+	unicode = { activeVersion: '6' };
 	loadAddon(a: any): void {
 		this.addons.push(a);
 	}
@@ -43,6 +44,17 @@ class FakeFitAddon {
 
 mock.module('@xterm/xterm', () => ({ Terminal: FakeTerminal }));
 mock.module('@xterm/addon-fit', () => ({ FitAddon: FakeFitAddon }));
+// The built-in optional addons default ON; mock them so imports resolve fast and
+// deterministically (a real dynamic import from disk is a macrotask and would
+// race the test's create-session response).
+class FakeClipboardAddon {}
+class FakeWebLinksAddon {}
+class FakeUnicode11Addon {}
+class FakeLigaturesAddon {}
+mock.module('@xterm/addon-clipboard', () => ({ ClipboardAddon: FakeClipboardAddon }));
+mock.module('@xterm/addon-web-links', () => ({ WebLinksAddon: FakeWebLinksAddon }));
+mock.module('@xterm/addon-unicode11', () => ({ Unicode11Addon: FakeUnicode11Addon }));
+mock.module('@xterm/addon-ligatures', () => ({ LigaturesAddon: FakeLigaturesAddon }));
 
 const { mountTerminal } = await import('./terminal.js');
 const { PtyKitClient } = await import('./pty-kit-client.js');
@@ -78,6 +90,24 @@ test('opens the terminal on the target and applies appearance options', async ()
 	expect(handle.fitAddon).toBeInstanceOf(FakeFitAddon);
 });
 
+test('applies the dark theme preset by default and swaps via setTheme', async () => {
+	const { handle } = await mount();
+	const term = handle.terminal as FakeTerminal;
+	expect(term.options.theme.background).toBe('#0f172a'); // dark preset
+	handle.setTheme('light');
+	expect(term.options.theme.background).toBe('#ffffff'); // light preset
+});
+
+test('accepts a theme preset name and a custom theme object', async () => {
+	const named = await mount({ theme: 'light' });
+	expect((named.handle.terminal as FakeTerminal).options.theme.background).toBe('#ffffff');
+
+	MockWebSocket.reset();
+	FakeTerminal.instances = [];
+	const custom = await mount({ theme: { background: 'rgba(0,0,0,0)' } });
+	expect((custom.handle.terminal as FakeTerminal).options.theme.background).toBe('rgba(0,0,0,0)');
+});
+
 test('writes server output to the terminal and also calls onData', async () => {
 	const got: string[] = [];
 	const { handle, socket } = await mount({ onData: (c: string) => got.push(c) });
@@ -95,7 +125,24 @@ test('forwards terminal keystrokes to the session as input', async () => {
 test('fit:false skips the FitAddon', async () => {
 	const { handle } = await mount({ fit: false });
 	expect(handle.fitAddon).toBeUndefined();
-	expect((handle.terminal as FakeTerminal).addons).toHaveLength(0);
+	const addons = (handle.terminal as FakeTerminal).addons;
+	expect(addons.some((a) => a instanceof FakeFitAddon)).toBe(false);
+});
+
+test('built-in addons load by default', async () => {
+	const { handle } = await mount();
+	const addons = (handle.terminal as FakeTerminal).addons;
+	expect(addons.some((a) => a instanceof FakeClipboardAddon)).toBe(true);
+	expect(addons.some((a) => a instanceof FakeWebLinksAddon)).toBe(true);
+	expect(addons.some((a) => a instanceof FakeUnicode11Addon)).toBe(true);
+	expect(addons.some((a) => a instanceof FakeLigaturesAddon)).toBe(true);
+});
+
+test('built-in addons opt out with false', async () => {
+	const { handle } = await mount({ clipboard: false, webLinks: false, unicode11: false, ligatures: false });
+	const addons = (handle.terminal as FakeTerminal).addons;
+	expect(addons.some((a) => a instanceof FakeClipboardAddon)).toBe(false);
+	expect(addons.some((a) => a instanceof FakeLigaturesAddon)).toBe(false);
 });
 
 test('dispose tears down the terminal but leaves a shared client connected', async () => {

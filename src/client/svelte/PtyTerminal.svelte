@@ -9,7 +9,9 @@
 -->
 <script>
 	import { mountTerminal } from '@myrialabs/ptykit/client';
-	import '@xterm/xterm/css/xterm.css';
+	import { untrack } from 'svelte';
+	// PtyKit's stylesheet (xterm base + chrome defaults: height fill + slim scrollbar).
+	import '../xterm.css';
 
 	let {
 		// --- connection ---
@@ -37,16 +39,22 @@
 		cursorBlink = true,
 		cursorStyle = 'block',
 		theme = undefined,
+		padding = undefined,
 		terminalOptions = {},
 		addons = undefined,
-		clipboard = false,
-		webLinks = false,
-		unicode11 = false,
-		ligatures = false,
+		// Addons + context menu default ON in mountTerminal; leave undefined here to
+		// inherit that default, pass `false` to opt out.
+		clipboard = undefined,
+		webLinks = undefined,
+		unicode11 = undefined,
+		ligatures = undefined,
+		contextMenu = undefined,
 
 		// --- behavior ---
 		fit = true,
 		fitDebounceMs = 100,
+		loading = undefined,
+		loadingText = undefined,
 		onTerminalReady = undefined,
 		showStatus = true,
 
@@ -66,68 +74,95 @@
 	let status = $state('reconnecting');
 	/** @type {HTMLDivElement | undefined} */
 	let container = $state();
+	/** @type {import('@myrialabs/ptykit/client').TerminalHandle | undefined} */
+	let handle = $state();
 
+	// (Re)mount only when the connection identity or container changes — appearance
+	// (theme/fontSize) is applied reactively below, so toggling dark/light or the
+	// font size never tears down and re-attaches the session.
 	$effect(() => {
-		if (!container) return;
+		// Tracked deps: the only things that should force a fresh mount.
+		void sessionId; void namespace; void create; void client; void url;
+		const target = container;
+		if (!target) return;
 		let cancelled = false;
 		/** @type {import('@myrialabs/ptykit/client').TerminalHandle | undefined} */
-		let handle;
+		let local;
 
-		mountTerminal(container, {
-			url,
-			sessionId,
-			namespace,
-			create,
-			client,
-			reconnect,
-			persistence,
-			requestTimeoutMs,
-			WebSocketImpl,
-			cols,
-			rows,
-			cwd,
-			shell,
-			scrollback,
-			fontSize,
-			fontFamily,
-			lineHeight,
-			cursorBlink,
-			cursorStyle,
-			theme,
-			terminalOptions,
-			addons,
-			clipboard,
-			webLinks,
-			unicode11,
-			ligatures,
-			fit,
-			fitDebounceMs,
-			onReady: onTerminalReady,
-			onData: ondata,
-			onExit: onexit,
-			onError: onerror,
-			onDirectory: ondirectory,
-			onStatus: (s) => {
-				status = s;
-				onstatus?.(s);
-			},
-		})
-			.then((h) => {
-				if (cancelled) {
-					h.dispose();
-					return;
-				}
-				handle = h;
-				onready?.({ client: h.client, session: h.session, terminal: h.terminal });
+		untrack(() =>
+			mountTerminal(target, {
+				url,
+				sessionId,
+				namespace,
+				create,
+				client,
+				reconnect,
+				persistence,
+				requestTimeoutMs,
+				WebSocketImpl,
+				cols,
+				rows,
+				cwd,
+				shell,
+				scrollback,
+				fontSize,
+				fontFamily,
+				lineHeight,
+				cursorBlink,
+				cursorStyle,
+				theme,
+				padding,
+				terminalOptions,
+				addons,
+				clipboard,
+				webLinks,
+				unicode11,
+				ligatures,
+				contextMenu,
+				fit,
+				fitDebounceMs,
+				loading,
+				loadingText,
+				onReady: onTerminalReady,
+				onData: ondata,
+				onExit: onexit,
+				onError: onerror,
+				onDirectory: ondirectory,
+				onStatus: (s) => {
+					status = s;
+					onstatus?.(s);
+				},
 			})
-			.catch(() => {
-				/* onError (if provided) was already invoked inside mountTerminal */
-			});
+				.then((h) => {
+					if (cancelled) {
+						h.dispose();
+						return;
+					}
+					local = h;
+					handle = h;
+					onready?.({ client: h.client, session: h.session, terminal: h.terminal });
+				})
+				.catch(() => {
+					/* onError (if provided) was already invoked inside mountTerminal */
+				}),
+		);
 
 		return () => {
 			cancelled = true;
-			handle?.dispose();
+			local?.dispose();
+			handle = undefined;
 		};
+	});
+
+	// Apply appearance changes to the live terminal without a remount.
+	$effect(() => {
+		if (handle && theme !== undefined) handle.setTheme(theme);
+	});
+	$effect(() => {
+		if (handle) handle.terminal.options.fontSize = fontSize;
+	});
+	$effect(() => {
+		if (handle) handle.setPadding(padding);
 	});
 </script>
 

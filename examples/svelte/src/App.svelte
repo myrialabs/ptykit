@@ -19,7 +19,7 @@
 			showStatus={false}
 			fontSize={14}
 			cursorStyle="bar"
-			theme={{ background: '#0f172a', foreground: '#e2e8f0', cursor: '#22c55e' }}
+			theme="dark"
 			onstatus={(s) => (status = s)}
 			onerror={(e) => (status = `error: ${e instanceof Error ? e.message : e}`)}
 		/>

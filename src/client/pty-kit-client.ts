@@ -11,7 +11,12 @@
  * (R7/R14).
  */
 
-import { stripReportRequests, type Seq } from '../shared/index.js';
+import {
+	stripReportRequests,
+	type Seq,
+	type SessionCreatedEvent,
+	type SessionClosedEvent,
+} from '../shared/index.js';
 import {
 	WsCore,
 	type ReconnectOptions,
@@ -183,6 +188,8 @@ export class PtyKitClient {
 
 	private status: WSStatus = 'reconnecting';
 	private readonly statusCbs = new Set<(s: WSStatus) => void>();
+	private readonly sessionCreatedCbs = new Set<(event: SessionCreatedEvent) => void>();
+	private readonly sessionClosedCbs = new Set<(event: SessionClosedEvent) => void>();
 
 	constructor(options: PtyKitClientOptions) {
 		this.persistence = options.persistence ?? defaultPersistence();
@@ -206,6 +213,17 @@ export class PtyKitClient {
 			this.sessions.get(p?.sessionId)?._handleDirectory(p.newDirectory),
 		);
 		this.core.on('error', (p: any) => this.sessions.get(p?.sessionId)?._handleError(p.error));
+
+		// Room-level session lifecycle (collaborative awareness). These are NOT
+		// filtered by the local session map — the whole point is to learn about
+		// sessions this client did not open (e.g. a teammate's session in the same
+		// namespace).
+		this.core.on('session-created', (p: SessionCreatedEvent) => {
+			for (const cb of this.sessionCreatedCbs) cb(p);
+		});
+		this.core.on('session-closed', (p: SessionClosedEvent) => {
+			for (const cb of this.sessionClosedCbs) cb(p);
+		});
 	}
 
 	/** Subscribe to connection status. Fires immediately with the current value. */
@@ -213,6 +231,23 @@ export class PtyKitClient {
 		this.statusCbs.add(cb);
 		cb(this.status);
 		return () => this.statusCbs.delete(cb);
+	}
+
+	/**
+	 * Subscribe to sessions appearing in any joined room — including ones opened by
+	 * other clients (collaborative tab lists). Fires on every (re)attach broadcast,
+	 * so consumers should treat it as idempotent (dedupe by `sessionId`). Returns an
+	 * unsubscribe function.
+	 */
+	onSessionCreated(cb: (event: SessionCreatedEvent) => void): () => void {
+		this.sessionCreatedCbs.add(cb);
+		return () => this.sessionCreatedCbs.delete(cb);
+	}
+
+	/** Subscribe to sessions being killed in any joined room. Returns an unsubscribe function. */
+	onSessionClosed(cb: (event: SessionClosedEvent) => void): () => void {
+		this.sessionClosedCbs.add(cb);
+		return () => this.sessionClosedCbs.delete(cb);
 	}
 
 	connected(): boolean {

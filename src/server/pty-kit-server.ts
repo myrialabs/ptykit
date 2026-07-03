@@ -320,6 +320,16 @@ export class PtyKitServer {
 		this.rooms.join(conn, room);
 		this.wireBroadcast(session, room);
 
+		// Align the session to the attaching client's viewport BEFORE serializing so
+		// the replayed frame matches it exactly. Without this, a client reattaching
+		// at a different size replays a frame serialized at the OLD dimensions —
+		// which garbles full-screen TUIs (codex/claude/opencode) whose alt-screen
+		// content is absolutely positioned. Resizing also raises SIGWINCH, so the
+		// app redraws cleanly for every viewer. No-op when the size already matches.
+		if (data.cols && data.rows && (session.cols !== data.cols || session.rows !== data.rows)) {
+			this.manager.resize(session.sessionId, data.cols, data.rows);
+		}
+
 		const cols = session.cols;
 		const rows = session.rows;
 
@@ -346,8 +356,9 @@ export class PtyKitServer {
 			});
 		}
 
-		this.broadcast(room, 'tab-created', {
+		this.broadcast(room, 'session-created', {
 			sessionId: session.sessionId,
+			namespace: session.namespace,
 			streamId: session.streamId,
 			pid: session.pid,
 			currentDirectory: session.cwd,
@@ -389,7 +400,7 @@ export class PtyKitServer {
 		const pid = session.pid;
 		const room = this.resolveRoom({ namespace: session.namespace, sessionId: data.sessionId, conn });
 		this.manager.killSession(data.sessionId);
-		this.broadcast(room, 'tab-closed', { sessionId: data.sessionId });
+		this.broadcast(room, 'session-closed', { sessionId: data.sessionId, namespace: session.namespace });
 		return { sessionId: data.sessionId, pid };
 	}
 

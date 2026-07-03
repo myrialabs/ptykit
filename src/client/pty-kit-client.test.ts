@@ -31,6 +31,25 @@ test('attach sends create-session and resolves a session', async () => {
 	expect((frame!.payload as any).data.namespace).toBe('ns1');
 });
 
+test('onSessionCreated/onSessionClosed surface room tab events (not filtered by local sessions)', async () => {
+	const client = makeClient();
+	const { socket } = await attach(client, 's1');
+	const created: string[] = [];
+	const closed: string[] = [];
+	client.onSessionCreated((e) => created.push(e.sessionId));
+	client.onSessionClosed((e) => closed.push(e.sessionId));
+
+	// A session opened by another client in the room — this client never attached it.
+	socket.serverSend({
+		action: 'session-created',
+		payload: { sessionId: 's2', namespace: 'ns1', streamId: 's2-s', pid: 2, currentDirectory: '/tmp', cols: 80, rows: 24 },
+	});
+	socket.serverSend({ action: 'session-closed', payload: { sessionId: 's2', namespace: 'ns1' } });
+
+	expect(created).toEqual(['s2']);
+	expect(closed).toEqual(['s2']);
+});
+
 test('onData dedups live output by seq (R5)', async () => {
 	const client = makeClient();
 	const { session, socket } = await attach(client, 's1');

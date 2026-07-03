@@ -114,9 +114,26 @@ by `sessionId`. This is what makes N clients ↔ 1 session collaborative. The
 serialized reattach frame is unicast to the joining connection so existing
 viewers are not repainted.
 
+Session lifecycle is broadcast to the whole room as `session-created` /
+`session-closed` (each carries `{ sessionId, namespace, … }`), so clients can
+mirror the room's live session set. The browser client surfaces these via
+[`onSessionCreated` / `onSessionClosed`](./client.md#collaborative-session-awareness).
+
+### Reattach resizes before replay
+
+`create-session` is idempotent (R3): attaching to an existing session reuses it.
+When the request carries `cols`/`rows` that differ from the session's current
+size, the server **resizes the session (PTY + scrollback) before serializing the
+replay frame**, so the replayed screen always matches the attaching viewport.
+Because a PTY has one size, this is last-attach-wins — a second viewer at a
+different size resizes the shared PTY (raising `SIGWINCH`, so the running app
+redraws cleanly for everyone). This is what keeps full-screen TUIs from restoring
+garbled. Pair it with the client's fit-before-attach (`mountTerminal` does this
+automatically).
+
 ### Operations & events
 
 Operations (RPC): `create-session`, `resize`, `cancel`, `kill-session`, `clear`,
 `check-shell`, `pty-status`, `list-sessions`, `stream-status`, `missed-output`,
 `reconnect`; plus the `input` event. Server→client events: `ready`, `output`
-(with `seq`), `directory`, `exit`, `error`, `tab-created`, `tab-closed`.
+(with `seq`), `directory`, `exit`, `error`, `session-created`, `session-closed`.

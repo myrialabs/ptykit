@@ -11,7 +11,7 @@ The public surface of `@myrialabs/ptykit`, split across three entry points.
 | `@myrialabs/ptykit/server` | `PtyKitServer`, `createPtyKitServer`, `RoomRegistry`, transport hook types. |
 | `@myrialabs/ptykit/client` | `mountTerminal`, `mountViewer`, `PtyKitClient`, `ClientSession`, `attachFit`, `hostSocket`, `defaultPersistence`, `WsCore`. |
 | `@myrialabs/ptykit/xterm` | Re-exported xterm pieces: `Terminal`, `FitAddon`, `ClipboardAddon`, `WebLinksAddon`, `Unicode11Addon`, `LigaturesAddon`. |
-| `@myrialabs/ptykit/xterm.css` | xterm base stylesheet (side-effect import). |
+| `@myrialabs/ptykit/xterm.css` | xterm base stylesheet + chrome defaults (height fill, slim scrollbar). Side-effect import. |
 | `@myrialabs/ptykit/svelte` | `PtyTerminal` (default + named). |
 
 ## `@myrialabs/ptykit` (core + server)
@@ -34,6 +34,8 @@ The public surface of `@myrialabs/ptykit`, split across three entry points.
   streaming logs/progress. See [client.md](./client.md#mountviewer--read-only-output).
 - `PtyKitClient` / `ClientSession` — see [client.md](./client.md).
 - `attachFit(session, term, fitAddon, { debounceMs })` — see [client.md](./client.md#attachfit).
+- `themes` / `resolveTheme` + per-preset objects (`darkTheme`, `lightTheme`, `solarizedDarkTheme`, `solarizedLightTheme`, `draculaTheme`, `nordTheme`, `matrixTheme`) — built-in theme presets (names: `dark`, `light`, `solarized-dark`, `solarized-light`, `dracula`, `nord`, `matrix`).
+- `showLoadingOverlay(target, text?)` — the spinner overlay `mountTerminal`/`mountViewer` use; returns a disposer (for custom mounts).
 - `defaultPersistence()` / `SessionPersistence` — sessionId persistence.
 - `hostSocket(handle)` / `HostSocketHandle` — adapt an app-owned WebSocket into the
   `WebSocketImpl` seam so the client rides it instead of opening its own. See

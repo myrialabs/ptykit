@@ -77,8 +77,8 @@ export const SERVER_EVENTS = [
 	'directory',
 	'exit',
 	'error',
-	'tab-created',
-	'tab-closed',
+	'session-created',
+	'session-closed',
 ] as const;
 export type ServerEvent = (typeof SERVER_EVENTS)[number];
 
@@ -247,16 +247,20 @@ export interface ErrorEvent {
 	sessionId: string;
 	error: string;
 }
-export interface TabCreatedEvent {
+/** A session appeared in a room (created by any client, or re-attached). */
+export interface SessionCreatedEvent {
 	sessionId: string;
+	namespace: string;
 	streamId: string;
 	pid: number;
 	currentDirectory: string;
 	cols: number;
 	rows: number;
 }
-export interface TabClosedEvent {
+/** A session was removed from a room (killed). */
+export interface SessionClosedEvent {
 	sessionId: string;
+	namespace: string;
 }
 
 /** Maps each server→client event to its payload. */
@@ -266,8 +270,8 @@ export interface ServerEventMap {
 	directory: DirectoryEvent;
 	exit: ExitEvent;
 	error: ErrorEvent;
-	'tab-created': TabCreatedEvent;
-	'tab-closed': TabClosedEvent;
+	'session-created': SessionCreatedEvent;
+	'session-closed': SessionClosedEvent;
 }
 
 // ============================================================================

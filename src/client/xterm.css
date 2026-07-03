@@ -1,3 +1,43 @@
-/* Re-export of xterm.js base styles so consumers can pull terminal CSS from
-   PtyKit (`@myrialabs/ptykit/xterm.css`) without depending on `@xterm/*`. */
+/* PtyKit terminal styles — pull terminal CSS from PtyKit
+   (`@myrialabs/ptykit/xterm.css`) without depending on `@xterm/*` directly.
+
+   Re-exports xterm.js base styles, then layers a few sensible chrome defaults
+   every embedded terminal wants: fill the container height and a slim,
+   unobtrusive scrollbar that reads on both light and dark themes. Override any
+   of these in your app. Background and padding are intentionally left to the
+   consumer — they depend on your layout and whether you want transparency. */
 @import '@xterm/xterm/css/xterm.css';
+
+.xterm,
+.xterm .xterm-viewport,
+.xterm .xterm-screen {
+	height: 100%;
+}
+
+/* xterm's base stylesheet paints the viewport an opaque `#000`, and this file
+   stretches it to fill the container — so the sub-cell remainder the FitAddon
+   leaves below/right of the grid renders as a black gap, regardless of theme.
+   Make the viewport transparent so the host background (or the theme background
+   PtyKit paints on `.xterm`) shows through for a seamless, gap-free fill. */
+.xterm .xterm-viewport {
+	background-color: transparent;
+}
+
+/* Firefox */
+.xterm .xterm-viewport {
+	scrollbar-width: thin;
+	scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+}
+
+/* WebKit/Blink */
+.xterm .xterm-viewport::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+.xterm .xterm-viewport::-webkit-scrollbar-track {
+	background: transparent;
+}
+.xterm .xterm-viewport::-webkit-scrollbar-thumb {
+	background-color: rgba(148, 163, 184, 0.4);
+	border-radius: 4px;
+}

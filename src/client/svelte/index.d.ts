@@ -12,6 +12,8 @@ import type {
 	PtyKitClient,
 	ReconnectOptions,
 	SessionPersistence,
+	TerminalTheme,
+	ThemeName,
 	WebSocketFactory,
 } from '../index.js';
 
@@ -51,27 +53,36 @@ export interface PtyTerminalProps {
 
 	// terminal appearance
 	scrollback?: number;
+	/** Reactive — changing it resizes the font on the live terminal without a remount. */
 	fontSize?: number;
 	fontFamily?: string;
 	lineHeight?: number;
 	cursorBlink?: boolean;
 	cursorStyle?: 'block' | 'underline' | 'bar';
-	/** An xterm `ITheme` object. */
-	theme?: Record<string, unknown>;
+	/** A preset name (`'dark'` | `'light'`) or a full xterm `ITheme`. Default `'dark'`. Reactive — changing it re-themes the live terminal without a remount. */
+	theme?: ThemeName | TerminalTheme;
+	/** Inner padding (px number or CSS `padding` string), painted with the theme background for a seamless, gap-free fill. Reactive — changing it re-pads the live terminal without a remount. */
+	padding?: number | string;
 	/** Extra/override xterm `Terminal` options. */
 	terminalOptions?: Record<string, unknown>;
 	/** Extra xterm addons loaded after FitAddon (pass instances). */
 	addons?: unknown[];
-	/** Built-in optional addons, loaded lazily when enabled (optional peer deps). */
+	/** Built-in optional addons, loaded lazily (optional peer deps). Default `true`; pass `false` to opt out. */
 	clipboard?: boolean;
 	webLinks?: boolean;
 	unicode11?: boolean;
 	ligatures?: boolean;
+	/** Right-click copy/paste context menu. Default `true`; pass `false` to handle it yourself. */
+	contextMenu?: boolean;
 
 	// behavior
 	/** Attach a FitAddon + ResizeObserver. Default `true`. */
 	fit?: boolean;
 	fitDebounceMs?: number;
+	/** Show a built-in spinner overlay while loading. Default `true`; pass `false` for your own. */
+	loading?: boolean;
+	/** Label under the loading spinner. Default `'Connecting…'`; `''` for spinner only. */
+	loadingText?: string;
 	/** Called with the raw `terminal` after addons load, before attach (activate addons / key handlers). */
 	onTerminalReady?: (terminal: unknown) => void;
 	/** Show the built-in connection-status chip. Default `true`. */

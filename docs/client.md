@@ -40,10 +40,27 @@ handle.dispose();                     // detach, dispose the terminal, disconnec
   connected; when `mountTerminal` creates its own, `dispose()` disconnects it.
 - `fit: false` skips the `FitAddon` + `ResizeObserver` (then `handle.fitAddon` is
   `undefined`).
-- `addons` — construct extra xterm addons yourself (clipboard, web-links,
-  ligatures, unicode11, …) and pass the instances; they load after the FitAddon.
-  Use `onReady(terminal)` for post-load activation (e.g.
-  `terminal.unicode.activeVersion = '11'`) or to install custom key handlers.
+- **Batteries included**: the `clipboard`, `webLinks`, `unicode11`, and
+  `ligatures` addons load by default (each an optional peer dep — a missing one is
+  skipped silently). Pass `false` to any of them to opt out. A right-click
+  copy/paste `contextMenu` is also on by default; pass `contextMenu: false` to
+  handle it yourself.
+- `addons` — construct *extra* xterm addons yourself and pass the instances; they
+  load after the built-ins. Use `onReady(terminal)` for post-load activation or to
+  install custom key handlers.
+- **Reattach fidelity**: `mountTerminal` fits to the container *before* attaching,
+  so the create/attach request carries the real viewport size. The server resizes
+  the session (and its scrollback) to match before replaying — the replayed frame
+  therefore lines up with the viewport, and full-screen TUIs (vim, htop,
+  codex/claude/opencode) restore cleanly instead of garbled. See the
+  [server note](./server.md#reattach-resizes-before-replay).
+- **Loading state**: a spinner overlay shows in `target` while xterm loads and the
+  session attaches, so the container is never blank; it is removed on ready (and on
+  error). Disable with `loading: false`, or label it with `loadingText`.
+- **Styling**: import `@myrialabs/ptykit/xterm.css` once (the Svelte component does
+  this for you). It re-exports xterm's base styles plus chrome defaults — the
+  terminal fills its container and gets a slim, theme-neutral scrollbar. Background
+  and padding are left to you.
 - `WebSocketImpl` — pass `hostSocket(...)` to run the internal client over a socket
   your app already owns instead of opening a new one (see [Embedded](#embedded-ride-a-socket-you-already-own)).
 - xterm and the FitAddon are imported dynamically, so a non-browser/headless
@@ -54,6 +71,38 @@ handle.dispose();                     // detach, dispose the terminal, disconnec
 
 Reach for the lower-level `PtyKitClient` below when you need full control over the
 terminal lifecycle (e.g. custom addons, multiple terminals per session).
+
+### Themes
+
+You don't have to hand-write an 18-key ANSI palette. `theme` accepts a built-in
+preset **name**, a full xterm `ITheme` object, or nothing (defaults to the `dark`
+preset — a legible terminal out of the box). Built-in presets:
+
+```
+dark · light · solarized-dark · solarized-light · dracula · nord · matrix
+```
+
+```ts
+import { mountTerminal, draculaTheme } from '@myrialabs/ptykit/client';
+
+await mountTerminal(el, { url: '/pty', namespace, theme: 'solarized-dark' });   // preset by name
+await mountTerminal(el, { url: '/pty', namespace, theme: { ...draculaTheme, background: '#000' } }); // tweak a preset
+```
+
+Switch at runtime with the handle — e.g. to follow the OS colour scheme:
+
+```ts
+const handle = await mountTerminal(el, { url: '/pty', namespace });
+matchMedia('(prefers-color-scheme: light)').addEventListener('change', (e) =>
+  handle.setTheme(e.matches ? 'light' : 'dark'),
+);
+```
+
+Each preset is exported (`darkTheme`, `solarizedDarkTheme`, `draculaTheme`, …)
+along with the `themes` registry and `resolveTheme`, so you can import one and
+extend it. `mountViewer` and `<PtyTerminal>` take the same `theme` option (the
+component's `theme` prop is reactive — assign a new value and the live terminal
+re-themes).
 
 ## `mountViewer` — read-only output
 
@@ -69,10 +118,13 @@ import { mountViewer } from '@myrialabs/ptykit/client';
 
 const view = await mountViewer(document.getElementById('log')!, {
   fontSize: 12,
-  theme: { background: '#0f172a', foreground: '#e2e8f0' },
-  webLinks: true,          // clipboard / webLinks / unicode11 / ligatures toggles
+  theme: 'dark',           // preset name, full ITheme, or omit (defaults to 'dark')
+  webLinks: true,          // clipboard / webLinks / unicode11 / ligatures — opt-in here
   // stdin: false is the default — a viewer ignores keystrokes
+  // convertEol defaults to true so bare "\n" log output doesn't stair-step
 });
+
+view.setTheme('light');    // swap at runtime
 
 socket.onLog((chunk) => view.write(chunk)); // push output
 view.clear();                                // clear + reset
@@ -111,6 +163,30 @@ await session.cancel();                        // Ctrl+C
 await session.kill();                          // kill the server-side session
 session.detach();                              // stop locally; server session lives on
 ```
+
+### Collaborative session awareness
+
+Beyond a single session's output, the client surfaces room-level session
+lifecycle so a UI can mirror sessions opened by *other* clients in the same
+namespace (e.g. a teammate's new terminal). "Session", not "tab" — how you render
+it (tabs, a sidebar, split panes) is entirely up to you.
+
+```ts
+const offCreated = client.onSessionCreated((e) => {
+  // e: { sessionId, namespace, streamId, pid, currentDirectory, cols, rows }
+  showSessionIfMissing(e.sessionId);         // fires for every (re)attach — dedupe by id
+});
+const offClosed = client.onSessionClosed((e) => {
+  // e: { sessionId, namespace }
+  removeSession(e.sessionId);
+});
+```
+
+These are **not** filtered by the local session map — that is the point: they let
+a client learn about sessions it did not open. They fire for any room the client
+has joined (a room is joined when you `create`/`attach` a session in that
+namespace). Treat `onSessionCreated` as idempotent: it also fires for your own
+sessions and again on each reconnect re-attach, so dedupe by `sessionId`.
 
 ### Resilience (R14)
 

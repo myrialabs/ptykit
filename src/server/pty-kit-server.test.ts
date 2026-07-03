@@ -133,7 +133,7 @@ const tick = (ms = 30) => new Promise((r) => setTimeout(r, ms));
 
 // ---- Tests -----------------------------------------------------------------
 
-test('create-session returns session info and broadcasts ready/tab-created', async () => {
+test('create-session returns session info and broadcasts ready/session-created', async () => {
 	const h = startServer();
 	const c = new TestClient(h.port);
 	await c.open();
@@ -145,8 +145,28 @@ test('create-session returns session info and broadcasts ready/tab-created', asy
 
 	const ready = await c.waitFor('ready');
 	expect(ready.sessionId).toBe('s1');
-	const tab = await c.waitFor('tab-created');
-	expect(tab.sessionId).toBe('s1');
+	const created = await c.waitFor('session-created');
+	expect(created.sessionId).toBe('s1');
+	expect(created.namespace).toBe('ns1');
+});
+
+test('reattaching at a different size resizes the session before replaying', async () => {
+	const h = startServer();
+	const a = new TestClient(h.port);
+	await a.open();
+	await a.rpc('create-session', { sessionId: 's1', namespace: 'ns1', cols: 80, rows: 24 });
+
+	// A second client attaches to the same session at a larger viewport.
+	const b = new TestClient(h.port);
+	await b.open();
+	await b.rpc('create-session', { sessionId: 's1', namespace: 'ns1', cols: 120, rows: 40 });
+
+	// The session (PTY + scrollback) is realigned to the attaching viewport so the
+	// replayed frame matches it — the fix for garbled full-screen TUI restores.
+	expect(h.backend.last.resizes).toContainEqual([120, 40]);
+	const session = h.manager.getSession('s1')!;
+	expect(session.cols).toBe(120);
+	expect(session.rows).toBe(40);
 });
 
 test('input is forwarded to the PTY (R16)', async () => {
@@ -225,7 +245,7 @@ test('anti-hijack: input to a session in another namespace is dropped (R10)', as
 	expect(s2.writes.length).toBe(writesBefore);
 });
 
-test('kill-session broadcasts tab-closed and removes the session', async () => {
+test('kill-session broadcasts session-closed and removes the session', async () => {
 	const h = startServer();
 	const c = new TestClient(h.port);
 	await c.open();
@@ -233,7 +253,7 @@ test('kill-session broadcasts tab-closed and removes the session', async () => {
 
 	const res = await c.rpc('kill-session', { sessionId: 's1' });
 	expect(res.sessionId).toBe('s1');
-	const closed = await c.waitFor('tab-closed');
+	const closed = await c.waitFor('session-closed');
 	expect(closed.sessionId).toBe('s1');
 	expect(h.manager.getSession('s1')).toBeUndefined();
 });

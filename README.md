@@ -62,10 +62,20 @@ term.onData((data) => session.write(data));
 - **WebSocket only** — one multiplexed control + data channel. No SSE, no
   transport option, no polling.
 - **Collaborative rooms** — output broadcasts to a room (default = namespace), so
-  **N clients ↔ 1 session**. Multiple viewers see the same live terminal.
+  **N clients ↔ 1 session**. Multiple viewers see the same live terminal, and
+  room-level `onSessionCreated`/`onSessionClosed` let clients mirror the live
+  session set (render it as tabs, a list, panes — your call).
 - **Reattach that just works** — scrollback lives server-side in a headless
-  xterm and replays as a single serialized frame. Survives refresh, disconnect,
-  and tab switches with **zero data loss** and no double output.
+  xterm and replays as a single serialized frame. The server resizes the session
+  to the attaching viewport *before* replaying, so even full-screen TUIs (vim,
+  htop, coding agents) restore un-garbled. Survives refresh, disconnect, and tab
+  switches with **zero data loss** and no double output.
+- **Batteries-included client** — `mountTerminal` / `<PtyTerminal>` ship xterm,
+  fit, clipboard, web-links, unicode11, ligatures, a right-click copy/paste menu,
+  a loading spinner, and a set of theme presets (`dark`, `light`, `solarized-dark`,
+  `solarized-light`, `dracula`, `nord`, `matrix`) on by default — all opt-out /
+  overridable. No addon or ANSI-palette boilerplate to hand-wire; swap themes at
+  runtime with `setTheme` or the reactive `theme` prop.
 - **Auto-detected backend** — `bun-pty` on Bun (the tested path), `node-pty` on
   Node (experimental). A Node consumer never builds bun-pty's rust/ffi, and
   vice-versa — both are optional, lazily loaded.

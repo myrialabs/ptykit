@@ -11,6 +11,8 @@
  */
 
 import { attachFit } from './fit.js';
+import { showLoadingOverlay } from './loading.js';
+import { resolveTheme, type ThemeName, type TerminalTheme } from './themes.js';
 
 export interface MountViewerOptions {
 	// --- appearance ---
@@ -20,8 +22,11 @@ export interface MountViewerOptions {
 	lineHeight?: number;
 	cursorBlink?: boolean;
 	cursorStyle?: 'block' | 'underline' | 'bar';
-	/** An xterm `ITheme` object. */
-	theme?: Record<string, unknown>;
+	/**
+	 * A built-in preset name (`'dark'` | `'light'`) or a full xterm `ITheme` object.
+	 * Defaults to the `dark` preset.
+	 */
+	theme?: ThemeName | TerminalTheme;
 	/** Extra/override xterm `Terminal` options. */
 	terminalOptions?: Record<string, unknown>;
 	cols?: number;
@@ -42,6 +47,10 @@ export interface MountViewerOptions {
 	/** Attach a FitAddon + ResizeObserver. Default `true`. */
 	fit?: boolean;
 	fitDebounceMs?: number;
+	/** Show a built-in spinner overlay while xterm loads. Default `true`. */
+	loading?: boolean;
+	/** Label under the loading spinner. Default `'Loading…'`; `''` for spinner only. */
+	loadingText?: string;
 	/** Called with the raw `terminal` after addons load, before returning. */
 	onReady?: (terminal: any) => void;
 }
@@ -57,6 +66,8 @@ export interface TerminalViewerHandle {
 	clear(): void;
 	/** Re-fit to the container. */
 	fit(): void;
+	/** Swap the theme at runtime (preset name or `ITheme`) — e.g. dark/light toggle. */
+	setTheme(theme: ThemeName | TerminalTheme): void;
 	/** Dispose the terminal and stop observing resizes. Idempotent. */
 	dispose(): void;
 }
@@ -69,10 +80,16 @@ export async function mountViewer(
 	target: HTMLElement,
 	options: MountViewerOptions = {},
 ): Promise<TerminalViewerHandle> {
+	const removeLoading =
+		options.loading === false ? undefined : showLoadingOverlay(target, options.loadingText ?? 'Loading…');
+
 	const [{ Terminal }, { FitAddon }] = (await Promise.all([
 		import('@xterm/xterm'),
 		import('@xterm/addon-fit'),
-	])) as [any, any];
+	]).catch((err) => {
+		removeLoading?.();
+		throw err;
+	})) as [any, any];
 
 	const terminal = new Terminal({
 		scrollback: options.scrollback ?? 5000,
@@ -83,9 +100,13 @@ export async function mountViewer(
 		cursorStyle: options.cursorStyle ?? 'block',
 		disableStdin: options.stdin !== true,
 		allowProposedApi: true,
+		// Viewers stream log/tool output that often uses bare "\n" line endings;
+		// default to translating them to CRLF so lines don't stair-step. Override
+		// via `terminalOptions` if a source already sends CRLF.
+		convertEol: true,
+		theme: resolveTheme(options.theme),
 		...(options.cols ? { cols: options.cols } : {}),
 		...(options.rows ? { rows: options.rows } : {}),
-		...(options.theme ? { theme: options.theme } : {}),
 		...(options.terminalOptions ?? {}),
 	});
 
@@ -128,6 +149,7 @@ export async function mountViewer(
 		: undefined;
 
 	options.onReady?.(terminal);
+	removeLoading?.();
 
 	let disposed = false;
 	return {
@@ -139,6 +161,9 @@ export async function mountViewer(
 			terminal.reset();
 		},
 		fit: () => fitAddon?.fit(),
+		setTheme: (theme) => {
+			terminal.options.theme = resolveTheme(theme);
+		},
 		dispose() {
 			if (disposed) return;
 			disposed = true;

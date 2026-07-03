@@ -22,6 +22,8 @@ await mountTerminal(screenEl, {
 	sessionId: 'demo-terminal-1',
 	create: true,
 	fontSize: 13,
+	// No `theme` → the built-in `dark` preset. See the `styled` example for
+	// presets by name, custom palettes, and live theme switching.
 	onStatus: (s) => {
 		statusEl.textContent = s;
 		statusEl.dataset.status = s;

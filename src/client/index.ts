@@ -19,6 +19,20 @@ export {
 	type MountViewerOptions,
 	type TerminalViewerHandle,
 } from './viewer.js';
+export {
+	themes,
+	darkTheme,
+	lightTheme,
+	solarizedDarkTheme,
+	solarizedLightTheme,
+	draculaTheme,
+	nordTheme,
+	matrixTheme,
+	resolveTheme,
+	type ThemeName,
+	type TerminalTheme,
+} from './themes.js';
+export { showLoadingOverlay } from './loading.js';
 export { defaultPersistence, type SessionPersistence } from './persistence.js';
 export { hostSocket, type HostSocketHandle } from './host-socket.js';
 export {
@@ -37,4 +51,6 @@ export type {
 	ReadyEvent,
 	ExitEvent,
 	CreateSessionResponse,
+	SessionCreatedEvent,
+	SessionClosedEvent,
 } from '../shared/index.js';

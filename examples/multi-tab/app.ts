@@ -34,6 +34,8 @@ interface Tab {
 }
 
 const tabs = new Map<string, Tab>();
+/** Ids currently being opened, so a duplicate event can't double-mount a tab. */
+const opening = new Set<string>();
 let active: string | null = null;
 let counter = 0;
 
@@ -51,6 +53,8 @@ function setActive(sessionId: string) {
 }
 
 async function openTab(sessionId: string, create: boolean) {
+	if (tabs.has(sessionId) || opening.has(sessionId)) return;
+	opening.add(sessionId);
 	const screen = document.createElement('div');
 	screen.className = 'screen';
 	screensEl.appendChild(screen);
@@ -82,6 +86,7 @@ async function openTab(sessionId: string, create: boolean) {
 	});
 
 	tabs.set(sessionId, { sessionId, handle, tabBtn, screen });
+	opening.delete(sessionId);
 	setActive(sessionId);
 }
 
@@ -99,6 +104,29 @@ async function closeTab(sessionId: string) {
 		else active = null;
 	}
 }
+
+// Collaborative tab sync: mirror tabs opened/closed by OTHER clients in the room
+// (open a second browser tab to see it). These also fire for our own sessions and
+// again on every reconnect re-attach, so both handlers are written to be
+// idempotent (openTab guards on the tab map; closeTab is a no-op if already gone).
+client.onSessionCreated((e) => {
+	const n = Number(e.sessionId.split('-').pop());
+	if (Number.isFinite(n)) counter = Math.max(counter, n);
+	void openTab(e.sessionId, false); // attach — it already exists on the server
+});
+client.onSessionClosed((e) => {
+	const tab = tabs.get(e.sessionId);
+	if (!tab) return;
+	tab.handle.dispose();
+	tab.screen.remove();
+	tab.tabBtn.remove();
+	tabs.delete(e.sessionId);
+	if (active === e.sessionId) {
+		const next = tabs.keys().next().value;
+		if (next) setActive(next);
+		else active = null;
+	}
+});
 
 const addBtn = document.createElement('button');
 addBtn.className = 'tab add';

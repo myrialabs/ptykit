@@ -48,13 +48,19 @@ A richer example:
 | `requestTimeoutMs` | `number?` | — | RPC timeout. |
 | `cols` / `rows` / `cwd` / `shell` | — | — | Session params used when creating. |
 | `scrollback` | `number` | `5000` | Terminal scrollback lines. |
-| `fontSize` / `fontFamily` / `lineHeight` | — | — | Terminal typography. |
+| `fontSize` | `number` | `13` | Reactive — reassign to resize without a remount. |
+| `fontFamily` / `lineHeight` | — | — | Terminal typography. |
 | `cursorBlink` | `boolean` | `true` | |
 | `cursorStyle` | `'block' \| 'underline' \| 'bar'` | `'block'` | |
-| `theme` | `ITheme?` | — | xterm theme object. |
+| `theme` | `ThemeName \| ITheme` | `'dark'` | Preset name (`dark`, `light`, `solarized-dark`, `solarized-light`, `dracula`, `nord`, `matrix`) or a theme object. **Reactive** — reassign to re-theme the live terminal with no remount. |
 | `terminalOptions` | `object?` | `{}` | Extra/override xterm options. |
-| `fit` | `boolean` | `true` | Attach FitAddon + ResizeObserver. |
+| `clipboard` / `webLinks` / `unicode11` / `ligatures` | `boolean` | `true` | Built-in addons (optional peer deps; pass `false` to opt out). |
+| `contextMenu` | `boolean` | `true` | Right-click copy/paste; pass `false` to handle it yourself. |
+| `addons` | `unknown[]?` | — | Extra addon instances loaded after the built-ins. |
+| `fit` | `boolean` | `true` | Attach FitAddon + ResizeObserver (also fits before attach). |
 | `fitDebounceMs` | `number` | `100` | |
+| `loading` | `boolean` | `true` | Show a built-in spinner overlay while loading. |
+| `loadingText` | `string` | `'Connecting…'` | Label under the spinner (`''` = spinner only). |
 | `showStatus` | `boolean` | `true` | Built-in status chip. |
 | `class` | `string?` | — | Extra class on the root element. |
 
