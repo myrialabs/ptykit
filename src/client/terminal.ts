@@ -178,6 +178,9 @@ export async function mountTerminal(
 		theme: resolvedTheme,
 		...(options.terminalOptions ?? {}),
 	});
+	// Recover IME / text-services keystrokes xterm would otherwise drop
+	// (xtermjs#5887). Must run before any input flows, i.e. before `open`.
+	patchImeInsertText(terminal);
 	const fitAddon = options.fit === false ? undefined : new FitAddon();
 	if (fitAddon) terminal.loadAddon(fitAddon);
 
@@ -317,6 +320,69 @@ export async function mountTerminal(
 			terminal.dispose();
 			if (ownClient) client.disconnect();
 		},
+	};
+}
+
+/**
+ * Work around xtermjs/xterm.js#5887 (unfixed as of xterm 6.0.0): some IMEs — and
+ * Windows 11's "show text suggestions when typing on the physical keyboard" —
+ * keep the input method "in the loop" and report `keyCode=229` for ordinary keys,
+ * delivering them as `input`/`insertText` events instead of plain keystrokes.
+ *
+ * xterm's own `_inputEvent` then drops that text: its `(!composed || !keyDownSeen)`
+ * gate stays false because keys arrive faster than `keyup` clears `_keyDownSeen`,
+ * so `triggerDataEvent` is never called and the character is lost. The symptom is
+ * distinctive — the first word of a command types fine, then every following word
+ * collapses into blank spaces (`bun add -g x` → `bun` + spaces), while `-`/flags
+ * survive because punctuation takes a different path. It is device-specific: it
+ * only shows up where such an IME / suggestion layer is active.
+ *
+ * The fix mirrors the upstream-proposed direction: emit `insertText` data whenever
+ * we are NOT inside a genuine composition (which the CompositionHelper still owns),
+ * so real CJK/IME composition is untouched and only the dropped keystrokes are
+ * recovered. Normal physical-keyboard keys are unaffected: they go through
+ * `_keyDown` (which `preventDefault`s the event, so no `input` fires), and paste /
+ * autofill use other `inputType`s, so this narrow `insertText`-only path can't
+ * double-emit.
+ *
+ * Reaches into xterm private internals (`_core`); every access is guarded so an
+ * unexpected build shape simply leaves xterm's built-in handling in place, and the
+ * patched handler falls back to the original on any runtime error.
+ */
+function patchImeInsertText(terminal: any): void {
+	const core = terminal?._core;
+	const original = core?._inputEvent;
+	const composition = core?._compositionHelper;
+	const coreService = core?.coreService;
+	const optionsService = core?.optionsService;
+	if (
+		typeof original !== 'function' ||
+		!composition ||
+		!coreService ||
+		typeof coreService.triggerDataEvent !== 'function' ||
+		!optionsService ||
+		typeof core.cancel !== 'function'
+	) {
+		return; // unknown xterm internals — keep xterm's own input handling
+	}
+	core._inputEvent = function patchedInputEvent(ev: any): boolean {
+		try {
+			if (
+				ev?.data &&
+				ev.inputType === 'insertText' &&
+				!composition._isComposing &&
+				!optionsService.rawOptions.screenReaderMode
+			) {
+				if (this._keyPressHandled) return false;
+				this._unprocessedDeadKey = false;
+				coreService.triggerDataEvent(ev.data, true);
+				this.cancel(ev);
+				return true;
+			}
+			return false;
+		} catch {
+			return original.call(this, ev);
+		}
 	};
 }
 
