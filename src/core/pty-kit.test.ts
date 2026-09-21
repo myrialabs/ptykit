@@ -99,3 +99,36 @@ test('dispose kills and removes every session', async () => {
 	expect(kit.getSession('b')).toBeUndefined();
 	expect(backend.handles.every((h) => h.kills.includes('SIGKILL'))).toBe(true);
 });
+
+test('createSession merges per-session env over the manager inject (R2)', async () => {
+	const { backend, kit } = makeKit({
+		env: { inject: { SHARED: 'manager', TERM_PROGRAM: 'xterm.js' } },
+	});
+	await kit.createSession({
+		sessionId: 's1',
+		namespace: 'ns1',
+		env: { SHARED: 'session', GIT_CONFIG_COUNT: '1' },
+	});
+	const env = backend.last.spawnOptions.env;
+	// Per-session wins over the manager's value for the same name...
+	expect(env.SHARED).toBe('session');
+	// ...while names it does not mention survive untouched.
+	expect(env.TERM_PROGRAM).toBe('xterm.js');
+	expect(env.GIT_CONFIG_COUNT).toBe('1');
+});
+
+test('per-session env does not leak into the next session', async () => {
+	const { backend, kit } = makeKit();
+	await kit.createSession({ sessionId: 's1', namespace: 'ns1', env: { SCOPED: 'first' } });
+	await kit.createSession({ sessionId: 's2', namespace: 'ns1' });
+	expect(backend.handles[0].spawnOptions.env.SCOPED).toBe('first');
+	expect(backend.handles[1].spawnOptions.env.SCOPED).toBeUndefined();
+});
+
+test('reusing a live session id does not re-read env (spawn-time only)', async () => {
+	const { backend, kit } = makeKit();
+	await kit.createSession({ sessionId: 's1', namespace: 'ns1', env: { WHO: 'first' } });
+	await kit.createSession({ sessionId: 's1', namespace: 'ns1', env: { WHO: 'second' } });
+	expect(backend.handles.length).toBe(1);
+	expect(backend.last.spawnOptions.env.WHO).toBe('first');
+});

@@ -22,6 +22,9 @@ The public surface of `@myrialabs/ptykit`, split across three entry points.
 - Backend: `loadBackend`, `detectBackendName`, `PtyBackend`, `PtyProcessHandle`.
 - Scrollback seam: `BufferStore`, `MemoryBufferStore`.
 - Env/shell: `buildPtyEnv`, `getCleanSpawnEnv`, `resolveShell`, `checkShell`.
+- Per-session env: `CreateSessionOptions.env` (core) and the `env` server hook
+  with `SessionEnvContext` / `SessionEnvResolver`. See
+  [server.md](./server.md#per-session-environment).
 - Wire types: `RpcMap`, `ServerEventMap`, `OutputEvent`, `Seq`, `stripReportRequests`, …
 
 ## `@myrialabs/ptykit/client`

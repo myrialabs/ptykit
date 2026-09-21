@@ -64,6 +64,32 @@ export interface RoomContext {
 /** Resolve the broadcast room for a context. Default: the namespace. */
 export type RoomResolver = (ctx: RoomContext) => string;
 
+export interface SessionEnvContext {
+	namespace: string;
+	sessionId: string;
+	cwd?: string;
+	conn: PtyKitConnection;
+}
+
+/**
+ * Resolve extra environment variables for a session about to be spawned.
+ *
+ * Deliberately a server hook rather than a field on the create frame: the
+ * client asks for a session, it does not get to say what environment that
+ * session runs with. A browser that could name its own variables could set
+ * `PATH`, `LD_PRELOAD` or anything else the shell trusts, which would turn
+ * "may open a terminal" into "may run arbitrary code as the server user". So
+ * the answer comes from the host, which already knows the connection identity
+ * through `conn.data` and the workspace through `namespace`.
+ *
+ * Merged over the manager's `env.inject`. Throwing is treated as "no extra
+ * variables" and logged — a failed lookup must not cost the user their
+ * terminal.
+ */
+export type SessionEnvResolver = (
+	ctx: SessionEnvContext,
+) => Record<string, string> | Promise<Record<string, string>>;
+
 /** Per-connection identity factory, run at upgrade. Return `false` to reject. */
 export type UpgradeHook = (
 	request: any,
@@ -79,6 +105,11 @@ export interface PtyKitServerOptions {
 	authorize?: AuthorizeHook;
 	/** Collaborative room resolver (R11). Default `(ctx) => ctx.namespace`. */
 	room?: RoomResolver;
+	/**
+	 * Per-session environment, resolved server-side at spawn. Default: none.
+	 * See {@link SessionEnvResolver} for why this is not a client-supplied field.
+	 */
+	env?: SessionEnvResolver;
 	/** Attach identity to a connection at upgrade; return `false` to reject. */
 	onUpgrade?: UpgradeHook;
 	/** Diagnostics sink. Off by default. */
@@ -150,6 +181,21 @@ export class PtyKitServer {
 		} catch (err) {
 			this.logger.error('server', 'onUpgrade threw', err);
 			return false;
+		}
+	}
+
+	/** Ask the host for this session's extra environment. Never throws. */
+	private async resolveSessionEnv(
+		ctx: SessionEnvContext,
+	): Promise<Record<string, string> | undefined> {
+		if (!this.options.env) return undefined;
+		try {
+			return await this.options.env(ctx);
+		} catch (err) {
+			// A host that cannot resolve the environment still gets a terminal —
+			// one without the extras, which is exactly the pre-hook behaviour.
+			this.logger.error('server', 'env hook threw', err);
+			return undefined;
 		}
 	}
 
@@ -315,6 +361,12 @@ export class PtyKitServer {
 			cwd: data.cwd,
 			cols: data.cols ?? 80,
 			rows: data.rows ?? 24,
+			env: await this.resolveSessionEnv({
+				namespace: data.namespace,
+				sessionId: data.sessionId,
+				cwd: data.cwd,
+				conn,
+			}),
 		});
 
 		this.rooms.join(conn, room);

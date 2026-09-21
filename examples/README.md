@@ -20,7 +20,7 @@ see the actual behavior end-to-end.
 | [`authorize.ts`](./authorize.ts) | The `authorize` hook + `onUpgrade` identity + anti-hijack |
 | [`node-server.ts`](./node-server.ts) | Mounting on a Node `http.Server` via the `ws` package |
 | [`headless-capture.ts`](./headless-capture.ts) | The core engine without a server: drive a session, read serialized scrollback |
-| [`custom-shell-env.ts`](./custom-shell-env.ts) | Custom shell, cwd, and environment hygiene |
+| [`custom-shell-env.ts`](./custom-shell-env.ts) | Custom shell, cwd, environment hygiene, and per-session env |
 
 ## Browser examples
 

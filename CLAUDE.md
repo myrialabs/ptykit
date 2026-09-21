@@ -45,6 +45,10 @@ weaken them without a measured reason.
 - `authorize` is enforced (create/attach/write/resize/kill) with anti-hijack
   ownership checks. It defaults to allow-all for DX — keep the production warning
   loud in docs.
+- Session environment is resolved server-side by the `env` hook. Never add an
+  `env` field to the wire protocol: a client that names its own variables can set
+  `PATH`/`LD_PRELOAD` and turn "may open a terminal" into "may run arbitrary code
+  as the server user".
 - The library core stays silent. No stdout/stderr writes; route diagnostics
   through the injectable logger (off by default).
 - Use ESM imports with explicit `.js` specifiers. Don't loosen the compiler or
@@ -63,7 +67,8 @@ weaken them without a measured reason.
   `@xterm/headless` + `@xterm/addon-serialize`; reattach (three paths); lifecycle
   (idle `\r` fallback, kill semantics).
 - `src/server/` — `createPtyKitServer`: WS transport over Bun.serve & Node
-  http.Server; rooms/broadcast; `authorize`; full RPC operation set + events.
+  http.Server; rooms/broadcast; `authorize`; per-session `env` resolved
+  server-side (never from the create frame); full RPC operation set + events.
 - `src/client/index.ts` — `PtyKitClient` (reconnect/backoff/heal, idempotency-aware
   resend, `onStatus`), `attach`/`create`/`write`/`resize`/`detach`, `seq` dedup,
   `persistence` hook, `attachFit` (FitAddon + ResizeObserver, debounced).

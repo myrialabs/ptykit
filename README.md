@@ -83,6 +83,9 @@ term.onData((data) => session.write(data));
   "open but dead" sockets, and idempotency-aware resend, all on by default.
 - **Bring your own auth** — an `authorize` hook enforces namespace access with
   anti-hijack ownership checks. The library ships no auth of its own.
+- **Per-session environment** — an `env` hook resolves variables per session from
+  the connection's identity, so one deployment can give each user or workspace
+  its own. Server-side by design: a client never names its own variables.
 - **Quiet, typed core** — no stdout/stderr writes, `sideEffects: false`, JSDoc on
   every export, runs on Node 18+ and Bun.
 
@@ -149,6 +152,19 @@ const manager = new PtyKitManager({
   idleTtl: null,            // sessions live until killed; a number opts into idle reaping
   retainExitedMs: 5 * 60_000, // keep exited sessions this long for reconnect replay
   env: { sanitize: true, inject: { MY_VAR: '1' } }, // strip runtime pollution, inject yours
+});
+```
+
+That `env` is deployment-wide. When a variable depends on *who* opened the
+terminal or *where* it points, resolve it per session instead — the hook runs
+just before spawn and is merged over the manager's `inject`:
+
+```ts
+const server = createPtyKitServer(manager, {
+  env: ({ conn, namespace }) => ({
+    GIT_AUTHOR_EMAIL: conn.data.user.email,
+    WORKSPACE: namespace,
+  }),
 });
 ```
 
@@ -226,6 +242,11 @@ provide an `authorize` implementation that checks the connection's identity
 (populated by `onUpgrade`) against the requested `namespace`. PtyKit also rejects
 cross-namespace `sessionId` access (anti-hijack), but it cannot know who your
 users are — that's your hook's job.
+
+Session environment follows the same rule: it is resolved by the server's `env`
+hook, never taken from the create frame. A client that could name its own
+variables could set `PATH` or `LD_PRELOAD`, which would turn "may open a
+terminal" into "may run arbitrary code as the server user".
 
 ## node-pty status
 

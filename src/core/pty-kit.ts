@@ -46,6 +46,23 @@ export interface CreateSessionOptions {
 	cwd?: string;
 	cols?: number;
 	rows?: number;
+	/**
+	 * Variables for THIS session, merged over the manager's `env.inject` (R2).
+	 *
+	 * The manager's `env` is process-wide policy — hygiene plus the terminal
+	 * defaults every shell wants. This is the per-session half: values that
+	 * differ between one session and the next because of who opened it or where
+	 * it points. A host that scopes sessions per user or per workspace has no
+	 * other way to express that, since `env.inject` is fixed at construction.
+	 *
+	 * Only `inject` is per-session. `sanitize` stays the manager's call: it
+	 * describes the runtime the library is embedded in, which one session cannot
+	 * know better than the host does.
+	 *
+	 * Read once at spawn, like every other environment. Changing what the host
+	 * would return does not reach a session that is already running.
+	 */
+	env?: Record<string, string>;
 }
 
 const DEFAULT_RETAIN_EXITED_MS = 5 * 60_000;
@@ -126,7 +143,11 @@ export class PtyKitManager {
 			cwd,
 			cols,
 			rows,
-			env: this.options.env,
+			// Per-session values win over the manager's, so a host can override a
+			// default it set globally rather than only add to it.
+			env: opts.env
+				? { ...this.options.env, inject: { ...this.options.env?.inject, ...opts.env } }
+				: this.options.env,
 			backend,
 			buffers: this.buffers,
 			idleFallbackMs: this.options.idleFallbackMs,

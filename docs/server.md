@@ -22,7 +22,7 @@ const manager = new PtyKitManager({
   // logger: myLogger,              // off by default — the core stays silent
 });
 
-await manager.createSession({ sessionId, namespace, shell?, cwd?, cols?, rows? }); // idempotent (R3)
+await manager.createSession({ sessionId, namespace, shell?, cwd?, cols?, rows?, env? }); // idempotent (R3)
 manager.getSerializedState(sessionId); // serialized scrollback frame (R6/R7)
 manager.write(sessionId, data);
 manager.resize(sessionId, cols, rows);
@@ -36,6 +36,11 @@ manager.dispose();                     // kill + remove everything
 To extend scrollback (e.g. a disk-backed store) implement `BufferStore` and pass
 `buffer: { store }` — the public API does not change.
 
+The manager's `env` is process-wide policy: hygiene plus the variables every
+shell in this deployment should have. `createSession({ env })` is the per-session
+half — values that differ from one session to the next. See
+[Per-session environment](#per-session-environment).
+
 ## `createPtyKitServer`
 
 ```ts
@@ -45,6 +50,7 @@ const server = createPtyKitServer(manager, {
   path: '/api/pty',
   authorize: async (ctx) => boolean,  // create/attach/write/resize/kill (R10)
   room: (ctx) => ctx.namespace,       // collaborative broadcast scope (R11)
+  env: (ctx) => ({ VAR: 'value' }),   // per-session environment, resolved server-side
   onUpgrade: (request) => ({ user }), // attach identity at upgrade; false to reject
 });
 ```
@@ -106,6 +112,50 @@ DX — production deployments MUST implement it. For session-referencing operati
 the `namespace` is derived from the session itself, so a connection authorized
 only for its own namespace cannot touch another's session (anti-hijack, R10).
 Identity comes from `conn.data`, populated by `onUpgrade`.
+
+### Per-session environment
+
+`PtyKitManagerOptions.env.inject` is fixed when the manager is constructed, so
+every shell in the process gets identical variables. That is the right shape for
+deployment-wide policy and the wrong one for anything that varies per session —
+who opened the terminal, which workspace it belongs to.
+
+The `env` hook fills that gap. It runs just before spawn and receives
+`{ namespace, sessionId, cwd, conn }`; whatever it returns is merged over the
+manager's `inject`, with the per-session value winning on a name collision.
+
+```ts
+const server = createPtyKitServer(manager, {
+  env: ({ conn, namespace }) => {
+    const user = conn.data.user as User;
+    return {
+      GIT_AUTHOR_NAME: user.name,
+      GIT_AUTHOR_EMAIL: user.email,
+      WORKSPACE: namespace,
+    };
+  },
+});
+```
+
+The hook may be async — the spawn waits for it.
+
+**Why a hook and not a field on the create frame.** The client asks for a
+session; it does not get to say what environment that session runs with. A
+browser able to name its own variables could set `PATH` or `LD_PRELOAD`, which
+turns "may open a terminal" into "may run arbitrary code as the server user".
+Sending `env` in a `create-session` payload is therefore ignored. The answer
+comes from the host, which already holds the connection identity in `conn.data`.
+
+Two limits worth designing around:
+
+- **Spawn-time only.** The environment is read once, when the PTY is created.
+  Because `create-session` is idempotent (R3), attaching to a live session does
+  not re-run the hook, and changing what the hook would return never reaches a
+  session that is already running. Surface the active values in your UI and let
+  the user open a new terminal to pick up a change.
+- **Failures are non-fatal.** A hook that throws yields no extra variables and
+  is reported through the logger. A failed identity lookup should not cost the
+  user their terminal.
 
 ### Rooms / broadcast
 

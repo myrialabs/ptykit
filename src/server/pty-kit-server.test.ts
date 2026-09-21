@@ -2,7 +2,11 @@ import { afterEach, expect, test } from 'bun:test';
 import http from 'node:http';
 import { PtyKitManager } from '../core/pty-kit.js';
 import { FakeBackend, flushMicrotasks } from '../core/fake-backend.js';
-import { createPtyKitServer, type AuthorizeHook } from './pty-kit-server.js';
+import {
+	createPtyKitServer,
+	type AuthorizeHook,
+	type SessionEnvResolver,
+} from './pty-kit-server.js';
 import type { WireFrame } from '../shared/index.js';
 
 // ---- Test harness: real Bun WebSocket server + client ----------------------
@@ -16,12 +20,13 @@ interface Harness {
 
 const harnesses: Harness[] = [];
 
-function startServer(authorize?: AuthorizeHook): Harness {
+function startServer(authorize?: AuthorizeHook, env?: SessionEnvResolver): Harness {
 	const backend = new FakeBackend();
 	const manager = new PtyKitManager({ backend, idleFallbackMs: 1_000_000, killGraceMs: 5 });
 	const server = createPtyKitServer(manager, {
 		path: '/pty',
 		authorize,
+		env,
 		onUpgrade: (request: Request) => {
 			const user = new URL(request.url).searchParams.get('user') ?? 'anon';
 			return { user };
@@ -375,4 +380,70 @@ test('embedded transport: session output broadcasts to the room via conn.send', 
 	// handleClose removes the connection from its rooms (no throw, no further sends).
 	server.handleClose(connB);
 	manager.dispose();
+});
+
+test('the env hook resolves per-session variables from connection identity', async () => {
+	const seen: Array<{ namespace: string; sessionId: string; user: unknown }> = [];
+	const h = startServer(undefined, (ctx) => {
+		seen.push({ namespace: ctx.namespace, sessionId: ctx.sessionId, user: ctx.conn.data.user });
+		return { GIT_AUTHOR_EMAIL: `${ctx.conn.data.user}@example.com` };
+	});
+
+	const a = new TestClient(h.port, 'alice');
+	await a.open();
+	await a.rpc('create-session', { sessionId: 's1', namespace: 'ns1' });
+
+	const b = new TestClient(h.port, 'bob');
+	await b.open();
+	await b.rpc('create-session', { sessionId: 's2', namespace: 'ns1' });
+
+	expect(seen).toEqual([
+		{ namespace: 'ns1', sessionId: 's1', user: 'alice' },
+		{ namespace: 'ns1', sessionId: 's2', user: 'bob' },
+	]);
+	// Two shells in one room, each spawned with its own caller's identity.
+	expect(h.backend.handles[0].spawnOptions.env.GIT_AUTHOR_EMAIL).toBe('alice@example.com');
+	expect(h.backend.handles[1].spawnOptions.env.GIT_AUTHOR_EMAIL).toBe('bob@example.com');
+});
+
+test('a client cannot inject environment through the create frame', async () => {
+	const h = startServer();
+	const c = new TestClient(h.port);
+	await c.open();
+
+	// `env` is not part of the wire contract. Sending it anyway must change
+	// nothing — otherwise "may open a terminal" would mean "may set PATH".
+	await c.rpc('create-session', {
+		sessionId: 's1',
+		namespace: 'ns1',
+		env: { PATH: '/tmp/evil', LD_PRELOAD: '/tmp/evil.so' },
+	} as any);
+
+	const env = h.backend.last.spawnOptions.env;
+	expect(env.PATH).not.toBe('/tmp/evil');
+	expect(env.LD_PRELOAD).toBeUndefined();
+});
+
+test('a throwing env hook still gets the user a terminal', async () => {
+	const h = startServer(undefined, () => {
+		throw new Error('identity lookup failed');
+	});
+	const c = new TestClient(h.port);
+	await c.open();
+
+	const res = await c.rpc('create-session', { sessionId: 's1', namespace: 'ns1' });
+	expect(res.sessionId).toBe('s1');
+	expect(h.backend.handles.length).toBe(1);
+});
+
+test('an async env hook is awaited before spawn', async () => {
+	const h = startServer(undefined, async () => {
+		await tick(5);
+		return { RESOLVED_LATE: 'yes' };
+	});
+	const c = new TestClient(h.port);
+	await c.open();
+
+	await c.rpc('create-session', { sessionId: 's1', namespace: 'ns1' });
+	expect(h.backend.last.spawnOptions.env.RESOLVED_LATE).toBe('yes');
 });

@@ -25,6 +25,9 @@ Development uses Bun for scripts and tests. `bun-pty` is the tested PTY backend;
   before attaching new ones.
 - Preserve the collaborative room model (output broadcast to a room, filtered
   client-side by `sessionId`; N clients ↔ 1 session).
+- Session environment is resolved server-side by the `env` hook. Never add an
+  `env` field to the wire protocol — a client naming its own variables could set
+  `PATH`/`LD_PRELOAD` and run arbitrary code as the server user.
 - The library core stays silent — no stdout/stderr writes; route diagnostics
   through the injectable logger.
 - Use explicit `.js` import specifiers. Keep strict TypeScript and ESLint intact.
@@ -38,7 +41,7 @@ Development uses Bun for scripts and tests. `bun-pty` is the tested PTY backend;
   adapters, output pipeline (seq/batching/fan-out), scrollback serialize,
   reattach, lifecycle.
 - `src/server/` — `createPtyKitServer`: WS transport, rooms/broadcast,
-  `authorize`, RPC + events (Bun.serve & Node http.Server).
+  `authorize`, per-session `env`, RPC + events (Bun.serve & Node http.Server).
 - `src/client/index.ts` — `ptykit/client`: `PtyKitClient`, `attachFit`,
   reconnect/heal, persistence hook.
 - `src/client/svelte/` — `ptykit/svelte`: `<PtyTerminal/>` adapter.
@@ -67,7 +70,8 @@ bun test src/core/session.test.ts   # targeted
 
 Add `*.test.ts` next to non-trivial logic: idempotent create, seq dedup, env
 hygiene, kill semantics, serialize-replay, authorize allow/deny + anti-hijack,
-room fan-out, reconnect/heal, fit debounce.
+per-session env merge + wire rejection, room fan-out, reconnect/heal, fit
+debounce.
 
 ## Documentation Rules
 
