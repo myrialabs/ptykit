@@ -31,6 +31,6 @@ export default [
 	},
 
 	{
-		ignores: ['dist/', 'examples/', 'bench/']
+		ignores: ['dist/', 'examples/', 'bench/', 'web/']
 	}
 ];

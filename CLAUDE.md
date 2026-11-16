@@ -11,7 +11,7 @@ for Node 18+ and Bun, with a framework-agnostic browser client and a Svelte
 adapter. Its design is hardened against real-world collaborative terminal usage
 rather than assembled from assumptions.
 
-- `ptykit` — core session engine (`PtyKit`) + WebSocket server
+- `ptykit` — core session engine (`PtyKitManager`) + WebSocket server
   (`createPtyKitServer`).
 - `ptykit/client` — browser client (`PtyKitClient`, `attachFit`) with
   reconnect/heal.
@@ -60,7 +60,7 @@ weaken them without a measured reason.
 ## Current Architecture
 
 - `src/index.ts` — main entry barrel (core + server).
-- `src/core/` — `PtyKit` session manager (`Map<sessionId, Session>`, idempotent
+- `src/core/` — `PtyKitManager` session manager (`Map<sessionId, Session>`, idempotent
   create, no idle TTL by default, retain-exited); `PtyBackend` interface +
   `bun-pty`/`node-pty` adapters + auto-detect; output pipeline (persist-first,
   micro-task batching, monotonic `seq`, multi-listener fan-out); scrollback via
@@ -105,8 +105,8 @@ For docs-only changes, say so and skip the code checks if nothing else changed.
 
 ## Public Surface Rules
 
-- Public API changes → update `README.md` and `docs/api.md` (+ the matching
-  `docs/server.md` / `docs/client.md` / `docs/svelte.md`).
+- Public API changes → update `README.md` and `docs/reference/api.md` (+ the
+  matching `docs/sdk/server.md` / `docs/sdk/client.md` / `docs/sdk/svelte.md`).
 - Keep examples aligned with the documented API.
 - `README.md` may be dirty from user edits; don't overwrite unless required.
 - Keep repository-facing text in English, following `CONTRIBUTING.md`.

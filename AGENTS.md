@@ -37,7 +37,7 @@ Development uses Bun for scripts and tests. `bun-pty` is the tested PTY backend;
 ## Repository Map
 
 - `src/index.ts` — main entry (`ptykit`): core engine + WebSocket server barrel.
-- `src/core/` — `PtyKit` session manager, `PtyBackend` + bun-pty/node-pty
+- `src/core/` — `PtyKitManager` session manager, `PtyBackend` + bun-pty/node-pty
   adapters, output pipeline (seq/batching/fan-out), scrollback serialize,
   reattach, lifecycle.
 - `src/server/` — `createPtyKitServer`: WS transport, rooms/broadcast,
@@ -75,8 +75,8 @@ debounce.
 
 ## Documentation Rules
 
-- Public API changes: update `README.md` and `docs/api.md`.
-- Server/client/adapter changes: update the matching `docs/*.md`.
+- Public API changes: update `README.md` and `docs/reference/api.md`.
+- Server/client/adapter changes: update the matching `docs/sdk/*.md`.
 - Example-affecting changes: update `examples/` or its README.
 - Do not create new Markdown files unless requested or clearly needed.
 

@@ -16,39 +16,39 @@ The public surface of `@myrialabs/ptykit`, split across three entry points.
 
 ## `@myrialabs/ptykit` (core + server)
 
-- `PtyKitManager` — session manager. See [server.md](./server.md#ptykitmanager).
+- `PtyKitManager` — session manager. See [server.md](../sdk/server.md#ptykitmanager).
 - `createPtyKitServer(manager, options)` — WebSocket server. See
-  [server.md](./server.md#createptykitserver).
+  [server.md](../sdk/server.md#createptykitserver).
 - Backend: `loadBackend`, `detectBackendName`, `PtyBackend`, `PtyProcessHandle`.
 - Scrollback seam: `BufferStore`, `MemoryBufferStore`.
 - Env/shell: `buildPtyEnv`, `getCleanSpawnEnv`, `resolveShell`, `checkShell`.
 - Per-session env: `CreateSessionOptions.env` (core) and the `env` server hook
   with `SessionEnvContext` / `SessionEnvResolver`. See
-  [server.md](./server.md#per-session-environment).
+  [server.md](../sdk/server.md#per-session-environment).
 - Wire types: `RpcMap`, `ServerEventMap`, `OutputEvent`, `Seq`, `stripReportRequests`, …
 
 ## `@myrialabs/ptykit/client`
 
 - `mountTerminal(target, options)` — ready-to-use xterm terminal wired to a
   session; returns a `{ client, session, terminal, fitAddon, dispose }` handle.
-  See [client.md](./client.md#mountterminal--the-ready-to-use-path).
+  See [client.md](../sdk/client.md#mountterminal--the-ready-to-use-path).
 - `mountViewer(target, options)` — read-only output terminal (no PTY, no input);
   returns a `{ terminal, fitAddon, write, clear, fit, dispose }` handle for
-  streaming logs/progress. See [client.md](./client.md#mountviewer--read-only-output).
-- `PtyKitClient` / `ClientSession` — see [client.md](./client.md).
-- `attachFit(session, term, fitAddon, { debounceMs })` — see [client.md](./client.md#attachfit).
+  streaming logs/progress. See [client.md](../sdk/client.md#mountviewer--read-only-output).
+- `PtyKitClient` / `ClientSession` — see [client.md](../sdk/client.md).
+- `attachFit(session, term, fitAddon, { debounceMs })` — see [client.md](../sdk/client.md#attachfit).
 - `themes` / `resolveTheme` + per-preset objects (`darkTheme`, `lightTheme`, `solarizedDarkTheme`, `solarizedLightTheme`, `draculaTheme`, `nordTheme`, `matrixTheme`) — built-in theme presets (names: `dark`, `light`, `solarized-dark`, `solarized-light`, `dracula`, `nord`, `matrix`).
 - `showLoadingOverlay(target, text?)` — the spinner overlay `mountTerminal`/`mountViewer` use; returns a disposer (for custom mounts).
 - `defaultPersistence()` / `SessionPersistence` — sessionId persistence.
 - `hostSocket(handle)` / `HostSocketHandle` — adapt an app-owned WebSocket into the
   `WebSocketImpl` seam so the client rides it instead of opening its own. See
-  [client.md](./client.md#embedded-ride-a-socket-you-already-own).
+  [client.md](../sdk/client.md#embedded-ride-a-socket-you-already-own).
 - `WsCore` — the low-level resilient socket (advanced use).
 
 ## `@myrialabs/ptykit/svelte`
 
 - `PtyTerminal` — `<PtyTerminal sessionId url namespace? create? />`. See
-  [svelte.md](./svelte.md).
+  [svelte.md](../sdk/svelte.md).
 
 ## Behavior coverage
 

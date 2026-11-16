@@ -13,9 +13,9 @@
 <p align="center">
   <a href="https://ptykit.myrialabs.dev">Website</a> ·
   <a href="https://www.npmjs.com/package/@myrialabs/ptykit">npm</a> ·
-  <a href="./docs/api.md">API reference</a> ·
-  <a href="./docs/server.md">Server</a> ·
-  <a href="./docs/client.md">Client</a> ·
+  <a href="./docs/reference/api.md">API reference</a> ·
+  <a href="./docs/sdk/server.md">Server</a> ·
+  <a href="./docs/sdk/client.md">Client</a> ·
   <a href="./examples/README.md">Examples</a> ·
   <a href="https://github.com/myrialabs/ptykit/issues">Issues</a>
 </p>
@@ -168,7 +168,7 @@ const server = createPtyKitServer(manager, {
 });
 ```
 
-See [docs/server.md](./docs/server.md) for the full surface, operations, and events.
+See [docs/sdk/server.md](./docs/sdk/server.md) for the full surface, operations, and events.
 
 ## Collaborative rooms
 
@@ -218,7 +218,7 @@ const client = new PtyKitClient({
 client.onStatus((s) => render(s)); // 'connected' | 'reconnecting' | 'disconnected'
 ```
 
-See [docs/client.md](./docs/client.md) for `mountTerminal`, `attachFit`,
+See [docs/sdk/client.md](./docs/sdk/client.md) for `mountTerminal`, `attachFit`,
 persistence, and the session API.
 
 ## Svelte
@@ -232,7 +232,7 @@ persistence, and the session API.
 ```
 
 The component is fully configurable (theme, font, reconnect, lifecycle
-callbacks, …). See [docs/svelte.md](./docs/svelte.md).
+callbacks, …). See [docs/sdk/svelte.md](./docs/sdk/svelte.md).
 
 ## Security
 
@@ -261,19 +261,22 @@ node-pty failed to spawn (`posix_spawnp`, reproduced with raw node-pty) — see
 Measured on a dev laptop (Apple M2, Bun 1.3.14). Reproduce with `bun bench.ts`;
 full numbers in [bench-results.md](./bench-results.md).
 
-- **Throughput overhead** of the wrapped pipeline vs raw bun-pty: **~7%**
+- **Throughput overhead** of the wrapped pipeline vs raw bun-pty: **~5.3%**
   (target <10%) — the cost of persist-to-headless-first + batching.
-- **Reattach** serialize latency: p50 ~3–9ms, p95 ~10–19ms across 10KB/100KB/1MB
+- **Reattach** serialize latency: p50 ~3–9.5ms, p95 ~10–18.8ms across 10KB/100KB/1MB
   buffers; the newest output is always present.
-- **Idle footprint**: ~0.13 MB of parent-process RSS per session. In-memory
+- **Idle footprint**: ~0.14 MB of parent-process RSS per session. In-memory
   scrollback was fine at 100 sessions — no disk spill needed.
 
 ## Documentation
 
-- [API reference](./docs/api.md) — every export across the three entry points.
-- [Server](./docs/server.md) — `PtyKit`, `createPtyKitServer`, rooms, `authorize`.
-- [Client](./docs/client.md) — `mountTerminal`, `PtyKitClient`, reconnect, persistence, `attachFit`.
-- [Svelte](./docs/svelte.md) — the `<PtyTerminal/>` component.
+- [Quick start](./docs/getting-started/quick-start.md) — install, minimal server + client.
+- [Core concepts](./docs/essential/core-concepts.md) — sessions, rooms, reattach, authorize, backend auto-detect.
+- [API reference](./docs/reference/api.md) — every export across the entry points.
+- [Server](./docs/sdk/server.md) — `PtyKitManager`, `createPtyKitServer`, rooms, `authorize`.
+- [Client](./docs/sdk/client.md) — `mountTerminal`, `PtyKitClient`, reconnect, persistence, `attachFit`.
+- [Svelte](./docs/sdk/svelte.md) — the `<PtyTerminal/>` component.
+- [Production](./docs/operations/production.md) — security hardening, backend status, deploy notes, performance.
 - [Examples](./examples/README.md) — runnable scenarios.
 
 ## Support
