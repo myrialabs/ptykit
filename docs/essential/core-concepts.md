@@ -37,13 +37,17 @@ running.
 
 ## Collaborative rooms
 
-Output for a session broadcasts to a **room** (default = the namespace), and
-every connection in that room receives it; the client filters by `sessionId`.
-That's what makes it collaborative: **N clients ↔ 1 session**. Multiple
-viewers watch the exact same live terminal, and room-level
-`session-created`/`session-closed` events (surfaced client-side as
-`onSessionCreated`/`onSessionClosed`) let a UI mirror the room's live session
-set — a teammate's new terminal shows up without a page refresh.
+Every connection **attached** to a session receives its output — that's what
+makes it collaborative: **N clients ↔ 1 session**, all watching the exact same
+live terminal. A connection attaches with `create-session`/`reconnect` and stops
+with `detach-session`, `leave-namespace` or a disconnect.
+
+Awareness is wider than output. Room-level (default = the namespace)
+`session-created`/`session-closed`/`ready`/`directory` events (surfaced
+client-side as `onSessionCreated`/`onSessionClosed`) reach every connection in
+the room, so a UI can mirror the room's live session set — a teammate's new
+terminal shows up without a page refresh — without paying for the output of
+sessions nobody on that connection is looking at.
 
 ```ts
 const server = createPtyKitServer(manager, {

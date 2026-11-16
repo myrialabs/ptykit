@@ -18,6 +18,7 @@ const manager = new PtyKitManager({
   scrollback: 5000,                 // headless xterm lines (R6)
   idleTtl: null,                    // sessions live until killed (R4); a number opts into idle reaping
   retainExitedMs: 5 * 60_000,       // keep exited sessions this long for reconnect (R8)
+  outputCoalesceMs: 0,              // >0: hold an output flood to one flush per window (first chunk never delayed)
   // preferBackend: 'bun-pty',      // force the backend; default = auto-detect
   // logger: myLogger,              // off by default — the core stays silent
 });
@@ -30,6 +31,7 @@ manager.cancel(sessionId);             // Ctrl+C (R19)
 manager.killSession(sessionId);        // Ctrl+C → SIGKILL, then remove (R19)
 manager.clear(sessionId);
 manager.list(namespace);
+manager.onSessionRemoved((sessionId) => { /* kill, idle TTL or end of retain window */ });
 manager.dispose();                     // kill + remove everything
 ```
 
@@ -159,14 +161,19 @@ Two limits worth designing around:
 
 ### Rooms / broadcast
 
-Output broadcasts to every connection whose `room(ctx)` matches; clients filter
-by `sessionId`. This is what makes N clients ↔ 1 session collaborative. The
-serialized reattach frame is unicast to the joining connection so existing
-viewers are not repainted.
+Output (`output`, `exit`, input `error`) goes to the connections **attached** to
+the session — via `create-session` or `reconnect` — and stops on
+`detach-session`, `leave-namespace` or disconnect. This is what makes N clients ↔
+1 session collaborative without every viewer of a workspace paying for every
+session in it. The serialized reattach frame is unicast to the joining
+connection so existing viewers are not repainted. When a session leaves the
+manager by any path, its viewers are dropped, so a later session reusing the id
+starts with none.
 
-Session lifecycle is broadcast to the whole room as `session-created` /
-`session-closed` (each carries `{ sessionId, namespace, … }`), so clients can
-mirror the room's live session set. The browser client surfaces these via
+Session lifecycle is broadcast to the whole room (`room(ctx)`, default = the
+namespace) as `session-created` / `session-closed` (each carries
+`{ sessionId, namespace, … }`), along with `ready` and `directory`, so clients
+can mirror the room's live session set. The browser client surfaces these via
 [`onSessionCreated` / `onSessionClosed`](./client.md#collaborative-session-awareness).
 
 ### Reattach resizes before replay
@@ -185,5 +192,5 @@ automatically).
 
 Operations (RPC): `create-session`, `resize`, `cancel`, `kill-session`, `clear`,
 `check-shell`, `pty-status`, `list-sessions`, `stream-status`, `missed-output`,
-`reconnect`; plus the `input` event. Server→client events: `ready`, `output`
+`reconnect`, `detach-session`, `leave-namespace`; plus the `input` event. Server→client events: `ready`, `output`
 (with `seq`), `directory`, `exit`, `error`, `session-created`, `session-closed`.

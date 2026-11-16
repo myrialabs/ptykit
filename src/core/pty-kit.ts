@@ -30,6 +30,12 @@ export interface PtyKitManagerOptions {
 	idleFallbackMs?: number;
 	/** Grace before SIGKILL after Ctrl+C on `kill` (ms). Default 1000 (R19). */
 	killGraceMs?: number;
+	/**
+	 * Hold a sustained output flood to at most one flush per this many ms.
+	 * The first chunk after a quiet spell is never delayed, so typing echo is
+	 * unaffected. Default 0 = micro-task batching only.
+	 */
+	outputCoalesceMs?: number;
 	/** Inject a backend (tests / forcing a specific one). */
 	backend?: PtyBackend;
 	/** Force the auto-detect choice. */
@@ -77,6 +83,7 @@ export class PtyKitManager {
 
 	private backend: PtyBackend | null;
 	private readonly removalTimers = new Map<string, ReturnType<typeof setTimeout>>();
+	private readonly removedListeners = new Set<(sessionId: string) => void>();
 	private idleSweeper: ReturnType<typeof setInterval> | null = null;
 	private disposed = false;
 
@@ -152,6 +159,7 @@ export class PtyKitManager {
 			buffers: this.buffers,
 			idleFallbackMs: this.options.idleFallbackMs,
 			killGraceMs: this.options.killGraceMs,
+			outputCoalesceMs: this.options.outputCoalesceMs,
 			logger: this.logger,
 		});
 
@@ -231,6 +239,16 @@ export class PtyKitManager {
 		}
 	}
 
+	/**
+	 * Be told whenever a session leaves the manager, by any path: an explicit
+	 * kill, the idle TTL, or the end of the retain-exited window. Returns an
+	 * unsubscribe function.
+	 */
+	onSessionRemoved(listener: (sessionId: string) => void): () => void {
+		this.removedListeners.add(listener);
+		return () => this.removedListeners.delete(listener);
+	}
+
 	/** Fully remove a session: dispose PTY subscriptions, timers, and scrollback. */
 	private remove(sessionId: string): void {
 		const session = this.sessions.get(sessionId);
@@ -242,6 +260,13 @@ export class PtyKitManager {
 		if (timer) {
 			clearTimeout(timer);
 			this.removalTimers.delete(sessionId);
+		}
+		for (const listener of this.removedListeners) {
+			try {
+				listener(sessionId);
+			} catch (err) {
+				this.logger.error('manager', 'session-removed listener error', err);
+			}
 		}
 	}
 

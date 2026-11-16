@@ -23,8 +23,8 @@ Development uses Bun for scripts and tests. `bun-pty` is the tested PTY backend;
 - Output persists to the headless terminal first (even with zero listeners);
   reattach replays a **serialized** frame, not raw bytes; clear old listeners
   before attaching new ones.
-- Preserve the collaborative room model (output broadcast to a room, filtered
-  client-side by `sessionId`; N clients ↔ 1 session).
+- Preserve the collaborative model: N clients ↔ 1 session. Awareness events go
+  to the room; output goes only to the connections attached to the session.
 - Session environment is resolved server-side by the `env` hook. Never add an
   `env` field to the wire protocol — a client naming its own variables could set
   `PATH`/`LD_PRELOAD` and run arbitrary code as the server user.

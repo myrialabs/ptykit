@@ -61,10 +61,12 @@ term.onData((data) => session.write(data));
 
 - **WebSocket only** — one multiplexed control + data channel. No SSE, no
   transport option, no polling.
-- **Collaborative rooms** — output broadcasts to a room (default = namespace), so
-  **N clients ↔ 1 session**. Multiple viewers see the same live terminal, and
-  room-level `onSessionCreated`/`onSessionClosed` let clients mirror the live
-  session set (render it as tabs, a list, panes — your call).
+- **Collaborative rooms** — **N clients ↔ 1 session**: every client attached to
+  a session sees the same live terminal, and room-level (default = namespace)
+  `onSessionCreated`/`onSessionClosed` let clients mirror the live session set
+  (render it as tabs, a list, panes — your call). Output only travels to the
+  clients attached to that session, so a busy terminal costs nothing for the
+  viewers that are not watching it.
 - **Reattach that just works** — scrollback lives server-side in a headless
   xterm and replays as a single serialized frame. The server resizes the session
   to the attaching viewport *before* replaying, so even full-screen TUIs (vim,
@@ -172,10 +174,22 @@ See [docs/sdk/server.md](./docs/sdk/server.md) for the full surface, operations,
 
 ## Collaborative rooms
 
-Output broadcasts to a room (default = the namespace) and clients filter by
-`sessionId`, so any number of clients can attach to the same session and watch
-the same live terminal. The serialized reattach frame is unicast to the joining
-client, so existing viewers are never repainted.
+Any number of clients can attach to the same session and watch the same live
+terminal. Two scopes are kept apart:
+
+- **Awareness** goes to the room (default = the namespace): `session-created`,
+  `session-closed`, `ready`, `directory`.
+- **Output** (`output`, `exit`) goes only to the connections attached to that
+  session — by `create`/`attach` — until they `detach()`, call
+  `leaveNamespace()`, or disconnect.
+
+The serialized reattach frame is unicast to the joining client, so existing
+viewers are never repainted.
+
+> **Upgrading from 0.0.x:** output used to reach every connection in the room.
+> A client that rendered a session it had only *heard about* through
+> `onSessionCreated` must now `attach` it first (which also replays its
+> scrollback).
 
 ```ts
 const server = createPtyKitServer(manager, {
@@ -205,7 +219,9 @@ const { session, terminal, dispose } = await mountTerminal(el, {
 Need full control? Drop down to `PtyKitClient`. Reconnect is on by default —
 exponential backoff (1s → 30s), heal-reconnect for sockets that are "open but
 dead", and idempotency-aware resend. On reconnect, every known session is
-re-attached so the room subscription and scrollback recover.
+re-attached so the room subscription and scrollback recover. `session.detach()`
+and `client.leaveNamespace()` tell the server to stop sending what the client
+no longer shows.
 
 ```ts
 const client = new PtyKitClient({

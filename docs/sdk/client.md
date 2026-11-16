@@ -161,7 +161,8 @@ await session.resize(cols, rows);
 await session.clear();
 await session.cancel();                        // Ctrl+C
 await session.kill();                          // kill the server-side session
-session.detach();                              // stop locally; server session lives on
+session.detach();                              // stop receiving (server stops sending); session lives on
+await client.leaveNamespace('project-42');     // leaving a workspace: detach all its sessions + stop its awareness events
 ```
 
 ### Collaborative session awareness
@@ -185,7 +186,8 @@ const offClosed = client.onSessionClosed((e) => {
 These are **not** filtered by the local session map — that is the point: they let
 a client learn about sessions it did not open. They fire for any room the client
 has joined (a room is joined when you `create`/`attach` a session in that
-namespace). Treat `onSessionCreated` as idempotent: it also fires for your own
+namespace, and left with `leaveNamespace`). Hearing about a session does not
+deliver its output: `attach` it to show it, which also replays its scrollback. Treat `onSessionCreated` as idempotent: it also fires for your own
 sessions and again on each reconnect re-attach, so dedupe by `sessionId`.
 
 ### Resilience (R14)

@@ -8,7 +8,7 @@ The public surface of `@myrialabs/ptykit`, split across three entry points.
 |---|---|
 | `@myrialabs/ptykit` | Barrel: `PtyKitManager`, `createPtyKitServer`, wire-protocol types, `PTYKIT_VERSION`. |
 | `@myrialabs/ptykit/core` | `PtyKitManager` and the core seams (backend, scrollback, env/shell). |
-| `@myrialabs/ptykit/server` | `PtyKitServer`, `createPtyKitServer`, `RoomRegistry`, transport hook types. |
+| `@myrialabs/ptykit/server` | `PtyKitServer`, `createPtyKitServer`, `RoomRegistry`, `SubscriberRegistry`, transport hook types. |
 | `@myrialabs/ptykit/client` | `mountTerminal`, `mountViewer`, `PtyKitClient`, `ClientSession`, `attachFit`, `hostSocket`, `defaultPersistence`, `WsCore`. |
 | `@myrialabs/ptykit/xterm` | Re-exported xterm pieces: `Terminal`, `FitAddon`, `ClipboardAddon`, `WebLinksAddon`, `Unicode11Addon`, `LigaturesAddon`. |
 | `@myrialabs/ptykit/xterm.css` | xterm base stylesheet + chrome defaults (height fill, slim scrollbar). Side-effect import. |

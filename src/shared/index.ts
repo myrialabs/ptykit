@@ -63,6 +63,8 @@ export const RPC_ACTIONS = [
 	'stream-status',
 	'missed-output',
 	'reconnect',
+	'detach-session',
+	'leave-namespace',
 ] as const;
 export type RpcAction = (typeof RPC_ACTIONS)[number];
 
@@ -199,6 +201,24 @@ export interface ReconnectResponse {
 	output: string;
 	status: string;
 }
+/** Stop receiving a session's output on this connection. The session keeps running. */
+export interface DetachSessionRequest {
+	sessionId: string;
+}
+export interface DetachSessionResponse {
+	sessionId: string;
+}
+/**
+ * Leave a namespace on this connection: no more awareness events for it and no
+ * more output from any of its sessions. Its sessions keep running.
+ */
+export interface LeaveNamespaceRequest {
+	namespace: string;
+}
+export interface LeaveNamespaceResponse {
+	namespace: string;
+	detached: string[];
+}
 
 /** Maps each RPC action to its `{ data, response }` contract. */
 export interface RpcMap {
@@ -213,6 +233,8 @@ export interface RpcMap {
 	'stream-status': { data: StreamStatusRequest; response: StreamStatusResponse };
 	'missed-output': { data: MissedOutputRequest; response: MissedOutputResponse };
 	reconnect: { data: ReconnectRequest; response: ReconnectResponse };
+	'detach-session': { data: DetachSessionRequest; response: DetachSessionResponse };
+	'leave-namespace': { data: LeaveNamespaceRequest; response: LeaveNamespaceResponse };
 }
 
 // ---- Event shapes ----------------------------------------------------------

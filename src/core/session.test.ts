@@ -120,3 +120,37 @@ test('resize keeps scrollback in sync with the PTY (R15)', () => {
 	expect(handle.resizes).toEqual([[120, 40]]);
 	expect(buffers.resizes).toEqual([['s1', 120, 40]]);
 });
+
+test('outputCoalesceMs sends the first chunk at once and holds a flood to one flush per window', async () => {
+	const { session, handle } = makeSession({ outputCoalesceMs: 40 });
+	const got: Array<[string, number]> = [];
+	session.addDataListener((data, seq) => got.push([data, seq]));
+
+	handle.emitData('first');
+	await flushMicrotasks();
+	expect(got).toEqual([['first', 1]]); // a quiet spell → no delay (typing echo)
+
+	handle.emitData('a');
+	handle.emitData('b');
+	await flushMicrotasks();
+	expect(got).toHaveLength(1); // within the window → held
+
+	await new Promise((r) => setTimeout(r, 60));
+	expect(got).toEqual([
+		['first', 1],
+		['ab', 2],
+	]);
+});
+
+test('outputCoalesceMs flushes held output before the exit is reported', async () => {
+	const { session, handle } = makeSession({ outputCoalesceMs: 1000 });
+	const order: string[] = [];
+	session.addDataListener((data) => order.push(`data:${data}`));
+	session.addExitListener(() => order.push('exit'));
+
+	handle.emitData('one');
+	await flushMicrotasks();
+	handle.emitData('two'); // held by the window
+	handle.emitExit(0);
+	expect(order).toEqual(['data:one', 'data:two', 'exit']);
+});

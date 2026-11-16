@@ -40,8 +40,10 @@ weaken them without a measured reason.
 - Persist output to the headless terminal first (even with zero listeners).
   Reattach replays a **serialized** frame, never raw byte history. Clear old
   listeners before attaching new ones (prevents double output).
-- Keep the collaborative room model: output broadcasts to a room (default =
-  namespace), the client filters by `sessionId`, N clients ↔ 1 session.
+- Keep the collaborative model: N clients ↔ 1 session. Awareness events
+  (`session-created`/`-closed`, `ready`, `directory`) go to the room (default =
+  namespace); output and exit go only to the connections attached to the
+  session, until they detach, leave the namespace or disconnect.
 - `authorize` is enforced (create/attach/write/resize/kill) with anti-hijack
   ownership checks. It defaults to allow-all for DX — keep the production warning
   loud in docs.

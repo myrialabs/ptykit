@@ -447,3 +447,88 @@ test('an async env hook is awaited before spawn', async () => {
 	await c.rpc('create-session', { sessionId: 's1', namespace: 'ns1' });
 	expect(h.backend.last.spawnOptions.env.RESOLVED_LATE).toBe('yes');
 });
+
+// ---- Output goes to attached viewers only (0.1.0) --------------------------
+
+const outputs = (c: TestClient, sessionId: string) =>
+	c.events.filter((e) => e.action === 'output' && e.payload.sessionId === sessionId).map((e) => e.payload.content);
+
+test('a viewer of the namespace hears a session appear but not its output until it attaches', async () => {
+	const h = startServer();
+	const a = new TestClient(h.port, 'alice');
+	const b = new TestClient(h.port, 'bob');
+	await Promise.all([a.open(), b.open()]);
+
+	await b.rpc('create-session', { sessionId: 'b1', namespace: 'ns1' }); // b joins ns1
+	await a.rpc('create-session', { sessionId: 'a1', namespace: 'ns1' });
+	expect((await b.waitFor('session-created')).sessionId).toBeDefined();
+	await tick();
+	expect(b.events.some((e) => e.action === 'session-created' && e.payload.sessionId === 'a1')).toBe(true);
+
+	h.backend.handles[1]!.emitData('only for a');
+	await tick();
+	expect(outputs(a, 'a1')).toContain('only for a');
+	expect(outputs(b, 'a1')).toEqual([]);
+
+	await b.rpc('create-session', { sessionId: 'a1', namespace: 'ns1' }); // attach
+	h.backend.handles[1]!.emitData('now shared');
+	await tick();
+	expect(outputs(b, 'a1')).toContain('now shared');
+});
+
+test('detach-session stops output to that connection only', async () => {
+	const h = startServer();
+	const a = new TestClient(h.port, 'alice');
+	const b = new TestClient(h.port, 'bob');
+	await Promise.all([a.open(), b.open()]);
+	await a.rpc('create-session', { sessionId: 's1', namespace: 'ns1' });
+	await b.rpc('create-session', { sessionId: 's1', namespace: 'ns1' });
+
+	expect(await b.rpc('detach-session', { sessionId: 's1' })).toEqual({ sessionId: 's1' });
+	h.backend.last.emitData('after detach');
+	await tick();
+	expect(outputs(a, 's1')).toContain('after detach');
+	expect(outputs(b, 's1')).not.toContain('after detach');
+	// The session itself is untouched.
+	expect(h.manager.getSession('s1')?.status).toBe('active');
+});
+
+test('leave-namespace stops awareness events and output from that namespace', async () => {
+	const h = startServer();
+	const a = new TestClient(h.port, 'alice');
+	const b = new TestClient(h.port, 'bob');
+	await Promise.all([a.open(), b.open()]);
+	await a.rpc('create-session', { sessionId: 's1', namespace: 'ns1' });
+	await b.rpc('create-session', { sessionId: 's1', namespace: 'ns1' });
+	await b.rpc('create-session', { sessionId: 'other', namespace: 'ns2' });
+
+	const left = await b.rpc('leave-namespace', { namespace: 'ns1' });
+	expect(left.detached).toEqual(['s1']);
+
+	h.backend.handles[0]!.emitData('ns1 output');
+	await a.rpc('create-session', { sessionId: 's2', namespace: 'ns1' });
+	await tick();
+	expect(outputs(b, 's1')).not.toContain('ns1 output');
+	expect(b.events.some((e) => e.action === 'session-created' && e.payload.sessionId === 's2')).toBe(false);
+
+	// Other namespaces are unaffected.
+	h.backend.handles[1]!.emitData('ns2 output');
+	await tick();
+	expect(outputs(b, 'other')).toContain('ns2 output');
+});
+
+test('a session recreated under the same id does not inherit the old viewers', async () => {
+	const h = startServer();
+	const a = new TestClient(h.port, 'alice');
+	const b = new TestClient(h.port, 'bob');
+	await Promise.all([a.open(), b.open()]);
+	await b.rpc('create-session', { sessionId: 's1', namespace: 'ns1' });
+
+	// Removed behind the server's back (host kill), then reused by someone else.
+	h.manager.killSession('s1', 'SIGKILL');
+	await a.rpc('create-session', { sessionId: 's1', namespace: 'ns1' });
+	h.backend.last.emitData('fresh session');
+	await tick();
+	expect(outputs(a, 's1')).toContain('fresh session');
+	expect(outputs(b, 's1')).not.toContain('fresh session');
+});

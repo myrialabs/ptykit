@@ -16,4 +16,4 @@ export {
 	type SessionEnvResolver,
 	type UpgradeHook,
 } from './pty-kit-server.js';
-export { RoomRegistry, type PtyKitConnection } from './connection.js';
+export { RoomRegistry, SubscriberRegistry, type PtyKitConnection } from './connection.js';

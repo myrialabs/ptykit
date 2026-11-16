@@ -170,13 +170,22 @@ export class ClientSession {
 	kill(): Promise<void> {
 		return this.client._kill(this.sessionId);
 	}
-	/** Stop receiving locally; does NOT kill the server-side session. */
+	/**
+	 * Stop receiving this session's output — locally and on the server, which
+	 * stops sending it to this connection. Does NOT kill the session; other
+	 * viewers keep receiving, and `attach` picks it up again with a replay.
+	 */
 	detach(): void {
+		this._release();
+		this.client._forget(this.sessionId);
+	}
+
+	/** @internal Drop every local callback without telling the server. */
+	_release(): void {
 		this.dataCbs.clear();
 		this.exitCbs.clear();
 		this.dirCbs.clear();
 		this.errCbs.clear();
-		this.client._forget(this.sessionId);
 	}
 }
 
@@ -306,6 +315,22 @@ export class PtyKitClient {
 		return this.core.http('list-sessions', { namespace: this.resolveNamespace(namespace) });
 	}
 
+	/**
+	 * Leave a namespace: detach every session of it held by this client and
+	 * stop receiving its awareness events (`session-created`/`-closed`). Call
+	 * when the user navigates away from a workspace; sessions keep running and
+	 * a later `attach`/`create` joins it again.
+	 */
+	async leaveNamespace(namespace?: string): Promise<void> {
+		const ns = this.resolveNamespace(namespace);
+		for (const [sessionId, session] of this.sessions) {
+			if (session.namespace !== ns) continue;
+			session._release();
+			this.sessions.delete(sessionId);
+		}
+		await this.core.http('leave-namespace', { namespace: ns });
+	}
+
 	disconnect(): void {
 		this.core.disconnect();
 	}
@@ -337,5 +362,8 @@ export class PtyKitClient {
 	/** @internal */
 	_forget(sessionId: string): void {
 		this.sessions.delete(sessionId);
+		// Best effort: a dropped socket already detached everything server-side,
+		// and a reconnect only re-attaches the sessions still held here.
+		this.core.http('detach-session', { sessionId }).catch(() => {});
 	}
 }

@@ -26,8 +26,10 @@ import {
 	type StreamStatusRequest,
 	type MissedOutputRequest,
 	type ReconnectRequest,
+	type DetachSessionRequest,
+	type LeaveNamespaceRequest,
 } from '../shared/index.js';
-import { RoomRegistry, type PtyKitConnection } from './connection.js';
+import { RoomRegistry, SubscriberRegistry, type PtyKitConnection } from './connection.js';
 import { nextConnectionId } from './ids.js';
 import { BunTransport } from './transport-bun.js';
 import { NodeTransport } from './transport-node.js';
@@ -123,7 +125,10 @@ function iso(): string {
 export class PtyKitServer {
 	readonly manager: PtyKitManager;
 	readonly path: string;
+	/** Awareness: who hears that sessions in a workspace appeared or went away. */
 	private readonly rooms = new RoomRegistry();
+	/** Delivery: who receives a session's output — only connections attached to it. */
+	private readonly subscribers = new SubscriberRegistry();
 	private readonly options: PtyKitServerOptions;
 	private readonly logger: Logger;
 	private readonly resolveRoom: RoomResolver;
@@ -137,6 +142,9 @@ export class PtyKitServer {
 		this.logger = options.logger ?? silentLogger;
 		this.path = options.path ?? '/';
 		this.resolveRoom = options.room ?? ((ctx) => ctx.namespace);
+		// However a session leaves the manager, its viewers stop being its viewers:
+		// a later session reusing the id must not inherit them.
+		manager.onSessionRemoved((sessionId) => this.subscribers.dropSession(sessionId));
 	}
 
 	// ---- Embedded transport (bring-your-own-socket) ------------------------
@@ -205,6 +213,7 @@ export class PtyKitServer {
 
 	handleClose(conn: PtyKitConnection): void {
 		this.rooms.leaveAll(conn);
+		this.subscribers.unsubscribeAll(conn);
 	}
 
 	/** Process one inbound raw message (string or bytes) from a connection. */
@@ -277,23 +286,24 @@ export class PtyKitServer {
 	}
 
 	/**
-	 * Install the single room-broadcast listener pair for a session, after
-	 * clearing any previous listeners (R7c) so switching/returning clients never
-	 * double up output. Output broadcasts to the whole room (collaborative);
-	 * clients filter by `sessionId`.
+	 * Install the single delivery listener pair for a session, after clearing
+	 * any previous listeners (R7c) so switching/returning clients never double
+	 * up output. Output and exit go to the connections attached to THIS session
+	 * (collaborative: every attached viewer), not to the whole room.
 	 */
-	private wireBroadcast(session: Session, room: string): void {
+	private wireDelivery(session: Session): void {
 		session.clearListeners();
 		session.addDataListener((content, seq) => {
-			this.broadcast(room, 'output', {
-				sessionId: session.sessionId,
-				content,
-				seq,
-				timestamp: iso(),
+			this.subscribers.deliver(session.sessionId, {
+				action: 'output',
+				payload: { sessionId: session.sessionId, content, seq, timestamp: iso() },
 			});
 		});
 		session.addExitListener((event) => {
-			this.broadcast(room, 'exit', { sessionId: session.sessionId, exitCode: event.exitCode });
+			this.subscribers.deliver(session.sessionId, {
+				action: 'exit',
+				payload: { sessionId: session.sessionId, exitCode: event.exitCode },
+			});
 		});
 	}
 
@@ -311,11 +321,13 @@ export class PtyKitServer {
 			}
 			const ok = this.manager.write(sessionId, data);
 			if (!ok) {
-				const room = this.resolveRoom({ namespace: session.namespace, sessionId, conn });
-				this.broadcast(room, 'error', {
-					sessionId,
-					error: 'Session not found or PTY not available',
-				});
+				const frame = {
+					action: 'error',
+					payload: { sessionId, error: 'Session not found or PTY not available' },
+				};
+				// Everyone watching the session, and the writer even if it is not.
+				this.subscribers.deliver(sessionId, frame);
+				if (!this.subscribers.sessionsOf(conn).includes(sessionId)) conn.send(frame);
 			}
 		}
 	}
@@ -344,6 +356,10 @@ export class PtyKitServer {
 				return this.opMissedOutput(conn, data as MissedOutputRequest);
 			case 'reconnect':
 				return this.opReconnect(conn, data as ReconnectRequest);
+			case 'detach-session':
+				return this.opDetachSession(conn, data as DetachSessionRequest);
+			case 'leave-namespace':
+				return this.opLeaveNamespace(conn, data as LeaveNamespaceRequest);
 			default:
 				throw new Error(`Unsupported operation: ${action}`);
 		}
@@ -370,7 +386,8 @@ export class PtyKitServer {
 		});
 
 		this.rooms.join(conn, room);
-		this.wireBroadcast(session, room);
+		this.subscribers.subscribe(conn, session.sessionId);
+		this.wireDelivery(session);
 
 		// Align the session to the attaching client's viewport BEFORE serializing so
 		// the replayed frame matches it exactly. Without this, a client reattaching
@@ -453,6 +470,7 @@ export class PtyKitServer {
 		const room = this.resolveRoom({ namespace: session.namespace, sessionId: data.sessionId, conn });
 		this.manager.killSession(data.sessionId);
 		this.broadcast(room, 'session-closed', { sessionId: data.sessionId, namespace: session.namespace });
+		this.subscribers.dropSession(data.sessionId);
 		return { sessionId: data.sessionId, pid };
 	}
 
@@ -518,6 +536,7 @@ export class PtyKitServer {
 		await this.authorize('attach', session.namespace, conn, data.sessionId);
 		const room = this.resolveRoom({ namespace: session.namespace, sessionId: data.sessionId, conn });
 		this.rooms.join(conn, room);
+		this.subscribers.subscribe(conn, data.sessionId);
 
 		const output = session.serialize();
 		if (output) {
@@ -528,14 +547,41 @@ export class PtyKitServer {
 		}
 
 		if (session.status === 'active') {
-			// Ensure ongoing output reaches the room even if create-session hasn't
-			// (re)installed listeners yet.
-			if (session.dataListenerCount === 0) this.wireBroadcast(session, room);
+			// Ensure ongoing output reaches the viewers even if create-session
+			// hasn't (re)installed listeners yet.
+			if (session.dataListenerCount === 0) this.wireDelivery(session);
 		} else {
-			this.broadcast(room, 'exit', { sessionId: data.sessionId, exitCode: session.exitCode ?? 0 });
+			conn.send({ action: 'exit', payload: { sessionId: data.sessionId, exitCode: session.exitCode ?? 0 } });
 		}
 
 		return { sessionId: data.sessionId, output, status: session.status };
+	}
+
+	/**
+	 * Stop sending this session's output to this connection. Nothing else
+	 * changes: the session keeps running, other viewers keep receiving, and the
+	 * connection still hears the workspace's awareness events.
+	 */
+	private async opDetachSession(conn: PtyKitConnection, data: DetachSessionRequest) {
+		this.subscribers.unsubscribe(conn, data.sessionId);
+		return { sessionId: data.sessionId };
+	}
+
+	/**
+	 * Leave a workspace on this connection — what a client does when its user
+	 * navigates elsewhere. Without it the connection kept every event and every
+	 * byte of output from that workspace for as long as the socket lived.
+	 */
+	private async opLeaveNamespace(conn: PtyKitConnection, data: LeaveNamespaceRequest) {
+		this.rooms.leave(conn, this.resolveRoom({ namespace: data.namespace, conn }));
+		const detached: string[] = [];
+		for (const sessionId of this.subscribers.sessionsOf(conn)) {
+			const session = this.manager.getSession(sessionId);
+			if (session && session.namespace !== data.namespace) continue;
+			this.subscribers.unsubscribe(conn, sessionId);
+			detached.push(sessionId);
+		}
+		return { namespace: data.namespace, detached };
 	}
 
 	// ---- Transport mounting -------------------------------------------------

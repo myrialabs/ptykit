@@ -4,7 +4,10 @@
  * Output pipeline (R5, R7a):
  *  1. Persist every chunk to the headless terminal FIRST — even with zero
  *     listeners — so scrollback stays accurate while clients are disconnected.
- *  2. Micro-task batch high-frequency output (`queueMicrotask`).
+ *  2. Micro-task batch high-frequency output (`queueMicrotask`); with
+ *     `outputCoalesceMs`, a sustained flood is further held to at most one
+ *     flush per window while the first chunk after a quiet spell still goes
+ *     out at once, so typing echo is never delayed.
  *  3. Stamp a monotonic `seq` per flush for client-side dedup.
  *  4. Fan out the batched chunk to every listener.
  *
@@ -36,6 +39,7 @@ export interface SessionConfig {
 	buffers: BufferStore;
 	idleFallbackMs?: number;
 	killGraceMs?: number;
+	outputCoalesceMs?: number;
 	logger?: Logger;
 }
 
@@ -73,12 +77,15 @@ export class Session {
 	private readonly buffers: BufferStore;
 	private readonly logger: Logger;
 	private readonly killGraceMs: number;
+	private readonly outputCoalesceMs: number;
 
 	private readonly dataListeners = new Set<SessionDataListener>();
 	private readonly exitListeners = new Set<SessionExitListener>();
 
 	private pendingOutput = '';
 	private flushScheduled = false;
+	private flushTimer: ReturnType<typeof setTimeout> | null = null;
+	private lastFlushAt = 0;
 	private receivedInitialOutput = false;
 
 	private readonly dataSub: PtyDisposable;
@@ -96,6 +103,7 @@ export class Session {
 		this.buffers = config.buffers;
 		this.logger = config.logger ?? silentLogger;
 		this.killGraceMs = config.killGraceMs ?? 1000;
+		this.outputCoalesceMs = Math.max(0, config.outputCoalesceMs ?? 0);
 
 		const { shell, args } = resolveShell(config.shell);
 		const env = buildPtyEnv(config.env, { cols: this.cols, rows: this.rows });
@@ -160,23 +168,45 @@ export class Session {
 		this.pendingOutput += data;
 		if (this.flushScheduled) return;
 		this.flushScheduled = true;
-		queueMicrotask(() => {
-			const output = this.pendingOutput;
-			this.pendingOutput = '';
-			this.flushScheduled = false;
-			this.outputSeq++;
-			const seq = this.outputSeq;
-			for (const listener of this.dataListeners) {
-				try {
-					listener(output, seq);
-				} catch (err) {
-					this.logger.error('session', 'data listener error', err);
-				}
+
+		// Coalescing only ever delays a flush that follows another one within the
+		// window; the first chunk after a quiet spell goes out on the micro-task.
+		const wait =
+			this.outputCoalesceMs > 0
+				? this.lastFlushAt + this.outputCoalesceMs - Date.now()
+				: 0;
+		if (wait > 0) {
+			this.flushTimer = setTimeout(() => this.flushOutput(), wait);
+		} else {
+			queueMicrotask(() => this.flushOutput());
+		}
+	}
+
+	/** Hand the pending batch to every listener under one new `seq`. */
+	private flushOutput(): void {
+		if (this.flushTimer) {
+			clearTimeout(this.flushTimer);
+			this.flushTimer = null;
+		}
+		if (!this.flushScheduled) return;
+		const output = this.pendingOutput;
+		this.pendingOutput = '';
+		this.flushScheduled = false;
+		this.lastFlushAt = Date.now();
+		this.outputSeq++;
+		const seq = this.outputSeq;
+		for (const listener of this.dataListeners) {
+			try {
+				listener(output, seq);
+			} catch (err) {
+				this.logger.error('session', 'data listener error', err);
 			}
-		});
+		}
 	}
 
 	private onExit(event: PtyExitEvent): void {
+		// Output still held by coalescing belongs before the exit, not after it.
+		this.flushOutput();
 		this.status = 'exited';
 		this.exitCode = event.exitCode;
 		if (this.idleTimer) {
@@ -306,6 +336,8 @@ export class Session {
 		}
 		if (this.idleTimer) clearTimeout(this.idleTimer);
 		if (this.killTimer) clearTimeout(this.killTimer);
+		if (this.flushTimer) clearTimeout(this.flushTimer);
+		this.flushTimer = null;
 		this.idleTimer = null;
 		this.killTimer = null;
 		this.clearListeners();
