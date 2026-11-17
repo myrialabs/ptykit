@@ -11,14 +11,16 @@
  *  3. Stamp a monotonic `seq` per flush for client-side dedup.
  *  4. Fan out the batched chunk to every listener.
  *
- * Lifecycle: idle `\r` fallback after 350ms of silence (R18); kill = Ctrl+C
- * then SIGKILL after 1s, or a direct signal (R19).
+ * Lifecycle: idle `\r` fallback after 350ms of silence (R18); kill ends the
+ * shell and every process it started — Ctrl+C, then SIGHUP/SIGTERM, then
+ * SIGKILL, a grace window apart — or all at once on a direct SIGKILL (R19).
  */
 
 import type { PtyBackend, PtyDisposable, PtyExitEvent, PtyProcessHandle } from './backend.js';
 import type { BufferStore } from './scrollback.js';
 import { buildPtyEnv, type EnvOptions } from './env.js';
 import { resolveShell } from './shell.js';
+import { isAlive, killTreeWindows, signalAll } from './process-tree.js';
 import { type Logger, silentLogger } from '../shared/index.js';
 
 /** Output listener: receives a batched chunk and its monotonic sequence. */
@@ -74,6 +76,7 @@ export class Session {
 	outputSeq = 0;
 
 	private readonly handle: PtyProcessHandle;
+	private readonly backend: PtyBackend;
 	private readonly buffers: BufferStore;
 	private readonly logger: Logger;
 	private readonly killGraceMs: number;
@@ -91,7 +94,6 @@ export class Session {
 	private readonly dataSub: PtyDisposable;
 	private readonly exitSub: PtyDisposable;
 	private idleTimer: ReturnType<typeof setTimeout> | null = null;
-	private killTimer: ReturnType<typeof setTimeout> | null = null;
 
 	constructor(config: SessionConfig) {
 		this.sessionId = config.sessionId;
@@ -108,6 +110,7 @@ export class Session {
 		const { shell, args } = resolveShell(config.shell);
 		const env = buildPtyEnv(config.env, { cols: this.cols, rows: this.rows });
 
+		this.backend = config.backend;
 		this.handle = config.backend.spawn(shell, args, {
 			name: 'xterm-256color',
 			cols: this.cols,
@@ -284,27 +287,36 @@ export class Session {
 		}
 	}
 
-	/** Kill: Ctrl+C then SIGKILL after the grace window, or a direct signal (R19). */
+	/** Set once a kill started; a later kill may only escalate to SIGKILL. */
+	private killing = false;
+
+	/**
+	 * End the session's shell AND everything it started (R19).
+	 *
+	 * - No signal (a tab closed): Ctrl+C so the foreground job can stop itself;
+	 *   after the grace window SIGHUP to the shell — the signal a closed
+	 *   terminal sends — and SIGTERM to the rest; after another, SIGKILL to
+	 *   whatever is left.
+	 * - `SIGTERM`: SIGTERM to all now, SIGKILL to what is left after the grace.
+	 * - `SIGKILL`: all at once.
+	 *
+	 * The tree is collected first (see process-tree.ts): background jobs,
+	 * `setsid()` children and SIGHUP-ignoring programs used to outlive the tab.
+	 * The sequence runs on its own timers so the caller may dispose the session
+	 * right away — `killSession` does, and that used to cancel the pending
+	 * SIGKILL so even the shell survived a closed tab.
+	 */
 	kill(signal?: string): void {
+		const force = signal === 'SIGKILL' || signal === '9';
+		if (this.killing && !force) return;
+		this.killing = true;
 		try {
-			if (signal === 'SIGKILL' || signal === '9') {
-				this.handle.kill('SIGKILL');
-				return;
-			}
-			if (signal === 'SIGTERM' || signal === '15') {
-				this.handle.kill('SIGTERM');
-				return;
-			}
-			this.handle.write('\x03');
-			this.killTimer = setTimeout(() => {
-				this.killTimer = null;
-				if (this.status === 'exited') return;
-				try {
-					this.handle.kill('SIGKILL');
-				} catch {
-					// already dead
-				}
-			}, this.killGraceMs);
+			terminate({
+				handle: this.handle,
+				tree: this.backend.collectProcessTree?.(this.handle.pid) ?? [],
+				mode: force ? 'kill' : signal === 'SIGTERM' || signal === '15' ? 'term' : 'close',
+				graceMs: this.killGraceMs,
+			});
 		} catch (err) {
 			this.logger.error('session', `kill of ${this.sessionId} failed`, err);
 		}
@@ -335,11 +347,102 @@ export class Session {
 			/* ignore */
 		}
 		if (this.idleTimer) clearTimeout(this.idleTimer);
-		if (this.killTimer) clearTimeout(this.killTimer);
 		if (this.flushTimer) clearTimeout(this.flushTimer);
 		this.flushTimer = null;
 		this.idleTimer = null;
-		this.killTimer = null;
 		this.clearListeners();
 	}
+}
+
+interface TerminateOptions {
+	handle: PtyProcessHandle;
+	/** The shell's processes, collected before anything was signalled. */
+	tree: number[];
+	mode: 'close' | 'term' | 'kill';
+	graceMs: number;
+}
+
+/**
+ * Run a session's kill sequence. Deliberately not tied to the Session: its
+ * timers must outlive `dispose()`, and once disposed the session no longer
+ * hears its own exit — so liveness is read from the processes themselves.
+ */
+function terminate({ handle, tree, mode, graceMs }: TerminateOptions): void {
+	const shellPid = handle.pid;
+	// Our own exit subscription: the session's goes away with dispose().
+	let shellExited = false;
+	let exitSub: PtyDisposable | null = null;
+	try {
+		exitSub = handle.onExit(() => {
+			shellExited = true;
+		});
+	} catch {
+		/* backend without exit events: fall back to signalling unconditionally */
+	}
+	const done = () => {
+		try {
+			exitSub?.dispose();
+		} catch {
+			/* ignore */
+		}
+	};
+	const signalShell = (signal: string) => {
+		try {
+			handle.kill(signal);
+		} catch {
+			// Already gone.
+		}
+	};
+	const later = (step: () => void) => {
+		const timer = setTimeout(step, graceMs);
+		(timer as { unref?: () => void }).unref?.();
+	};
+
+	if (process.platform === 'win32') {
+		done();
+		if (mode === 'kill') {
+			killTreeWindows(shellPid);
+			return;
+		}
+		if (mode === 'close') {
+			try {
+				handle.write('\x03');
+			} catch {
+				/* closed */
+			}
+		}
+		later(() => killTreeWindows(shellPid));
+		return;
+	}
+
+	const finish = () => {
+		if (!shellExited) signalShell('SIGKILL');
+		signalAll(tree.filter(isAlive), 'SIGKILL');
+		done();
+	};
+
+	if (mode === 'kill') {
+		signalShell('SIGKILL');
+		signalAll(tree, 'SIGKILL');
+		done();
+		return;
+	}
+
+	if (mode === 'term') {
+		signalShell('SIGTERM');
+		signalAll(tree, 'SIGTERM');
+		later(finish);
+		return;
+	}
+
+	try {
+		handle.write('\x03');
+	} catch {
+		/* closed */
+	}
+	later(() => {
+		if (!shellExited) signalShell('SIGHUP');
+		signalAll(tree.filter(isAlive), 'SIGTERM');
+		later(finish);
+	});
 }

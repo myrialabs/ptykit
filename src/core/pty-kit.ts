@@ -28,7 +28,10 @@ export interface PtyKitManagerOptions {
 	retainExitedMs?: number | null;
 	/** Idle `\r` fallback delay after spawn (ms). Default 350 (R18). */
 	idleFallbackMs?: number;
-	/** Grace before SIGKILL after Ctrl+C on `kill` (ms). Default 1000 (R19). */
+	/**
+	 * Grace between the steps of `kill` (ms): Ctrl+C, then SIGHUP/SIGTERM to the
+	 * shell and every process it started, then SIGKILL. Default 1000 (R19).
+	 */
 	killGraceMs?: number;
 	/**
 	 * Hold a sustained output flood to at most one flush per this many ms.

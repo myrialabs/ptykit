@@ -54,4 +54,11 @@ export interface PtyBackend {
 	 */
 	readonly experimental: boolean;
 	spawn(file: string, args: string[], options: PtySpawnOptions): PtyProcessHandle;
+	/**
+	 * The processes started from the PTY whose shell is `pid` (excluding it), so
+	 * a kill can end them too. Only real backends implement it: a fake backend's
+	 * pid is not a real process, and collecting "its" tree would find — and
+	 * kill — whatever process happens to own that pid.
+	 */
+	collectProcessTree?(pid: number): number[];
 }

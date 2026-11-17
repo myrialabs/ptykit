@@ -28,7 +28,7 @@ manager.getSerializedState(sessionId); // serialized scrollback frame (R6/R7)
 manager.write(sessionId, data);
 manager.resize(sessionId, cols, rows);
 manager.cancel(sessionId);             // Ctrl+C (R19)
-manager.killSession(sessionId);        // Ctrl+C → SIGKILL, then remove (R19)
+manager.killSession(sessionId);        // Ctrl+C → SIGHUP/SIGTERM → SIGKILL to the shell and every process it started, then remove (R19)
 manager.clear(sessionId);
 manager.list(namespace);
 manager.onSessionRemoved((sessionId) => { /* kill, idle TTL or end of retain window */ });

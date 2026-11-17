@@ -90,13 +90,34 @@ test('idle fallback is suppressed once output arrives (R18)', async () => {
 	expect(handle.writes).not.toContain('\r');
 });
 
-test('kill sends Ctrl+C then SIGKILL after the grace window (R19)', async () => {
+test('kill: Ctrl+C, then SIGHUP after the grace window, then SIGKILL (R19)', async () => {
 	const { handle, session } = makeSession({ killGraceMs: 10 });
 	session.kill();
 	expect(handle.writes).toContain('\x03');
 	expect(handle.kills).toEqual([]);
+	await new Promise((r) => setTimeout(r, 15));
+	expect(handle.kills).toEqual(['SIGHUP']);
+	await new Promise((r) => setTimeout(r, 15));
+	expect(handle.kills).toEqual(['SIGHUP', 'SIGKILL']);
+});
+
+test('kill completes even when the session is disposed right after (R19)', async () => {
+	// killSession disposes at once; that used to cancel the pending SIGKILL, so
+	// a closed tab left its shell running.
+	const { handle, session } = makeSession({ killGraceMs: 5 });
+	session.kill();
+	session.dispose();
 	await new Promise((r) => setTimeout(r, 25));
-	expect(handle.kills).toContain('SIGKILL');
+	expect(handle.kills).toEqual(['SIGHUP', 'SIGKILL']);
+});
+
+test('kill stops escalating once the shell exits (R19)', async () => {
+	const { handle, session } = makeSession({ killGraceMs: 5 });
+	session.kill();
+	await new Promise((r) => setTimeout(r, 8));
+	handle.emitExit(129);
+	await new Promise((r) => setTimeout(r, 15));
+	expect(handle.kills).toEqual(['SIGHUP']);
 });
 
 test('kill with explicit signal goes direct (R19)', () => {
@@ -104,6 +125,29 @@ test('kill with explicit signal goes direct (R19)', () => {
 	session.kill('SIGKILL');
 	expect(handle.kills).toEqual(['SIGKILL']);
 	expect(handle.writes).not.toContain('\x03');
+});
+
+test('kill ends every process the backend reports for the shell (R19)', async () => {
+	const children = [Bun.spawn(['sleep', '30']), Bun.spawn(['sleep', '31'])];
+	const backend = new FakeBackend();
+	backend.collectProcessTree = () => children.map((c) => c.pid);
+	const session = new Session({
+		sessionId: 's-tree',
+		namespace: 'ns1',
+		streamId: 's-tree-stream',
+		cwd: '/tmp',
+		cols: 80,
+		rows: 24,
+		backend,
+		buffers: new SpyBufferStore(),
+		idleFallbackMs: 1_000_000,
+		killGraceMs: 5,
+	});
+	session.kill();
+	session.dispose();
+	const codes = await Promise.all(children.map((c) => c.exited));
+	expect(children.every((c) => c.signalCode === 'SIGTERM' || c.signalCode === 'SIGKILL')).toBe(true);
+	expect(codes).toHaveLength(2);
 });
 
 test('write/resize/cancel become no-ops after exit', () => {

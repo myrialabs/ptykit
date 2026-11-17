@@ -71,6 +71,8 @@ export class FakeBackend implements PtyBackend {
 	readonly name: PtyBackendName;
 	readonly experimental: boolean;
 	readonly handles: FakeHandle[] = [];
+	/** Unset: a fake pid has no real process tree (see PtyBackend.collectProcessTree). */
+	collectProcessTree?: (pid: number) => number[];
 
 	constructor(name: PtyBackendName = 'bun-pty', experimental = false) {
 		this.name = name;

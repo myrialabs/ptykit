@@ -7,6 +7,7 @@
  * Bun consumer never builds `node-pty`.
  */
 
+import { collectProcessTree } from './process-tree.js';
 import type {
 	PtyBackend,
 	PtyBackendName,
@@ -67,6 +68,7 @@ function makeBackend(name: PtyBackendName, spawn: RawSpawn): PtyBackend {
 	return {
 		name,
 		experimental: name === 'node-pty',
+		collectProcessTree,
 		spawn(file, args, options: PtySpawnOptions): PtyProcessHandle {
 			const raw = spawn(file, args, {
 				name: options.name ?? 'xterm-256color',
